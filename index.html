@@ -33,7 +33,9 @@
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  background: var(--void);
+  /* 2. (추천) 글씨가 선명하게 보이도록 배경 이미지를 살짝 어둡게 덮을 때 */
+  background: linear-gradient(rgba(3, 5, 10, 0.75), rgba(3, 5, 10, 0.85)), 
+              url('./images/cover.png') center/100% 100% no-repeat;
   color: var(--text);
   font-family: var(--story);
   cursor: crosshair;
@@ -268,19 +270,120 @@ html, body {
 /* 씬 배경 레이어 */
 #scene-bg {
   position: absolute; inset: 0;
-  transition: background 1.2s ease;
+  transition: opacity 0.8s ease;   /* ← background → opacity 로 변경 */
   pointer-events: none;
   z-index: 0;
 }
 
-/* 씬별 배경 */
-.bg-s1 { background: radial-gradient(ellipse at 30% 70%, rgba(0,80,120,0.3) 0%, var(--void) 65%), var(--void); }
-.bg-s2 { background: radial-gradient(ellipse at 70% 40%, rgba(255,49,49,0.18) 0%, var(--void) 65%), var(--void); }
-.bg-s3 { background: radial-gradient(ellipse at 50% 60%, rgba(255,191,0,0.2) 0%, var(--void) 65%), var(--void); }
-.bg-s4 { background: radial-gradient(ellipse at 50% 50%, rgba(255,49,49,0.28) 0%, var(--void) 65%), var(--void); }
-.bg-s5 { background: radial-gradient(ellipse at 50% 50%, rgba(61,43,140,0.32) 0%, var(--void) 65%), var(--void); }
-.bg-s6 { background: radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.07) 0%, var(--void) 60%), var(--void); }
-.bg-s7 { background: radial-gradient(ellipse at 50% 50%, rgba(0,255,255,0.12) 0%, rgba(255,191,0,0.08) 50%, var(--void) 80%), var(--void); }
+/* 씬별 배경 이미지 + 분위기 오버레이 */
+.bg-s1 {
+  background:
+    radial-gradient(ellipse at 30% 70%, rgba(0,80,120,0.35) 0%, rgba(3,5,10,0.6) 100%),
+    url('images/S1.png') center/100% 100% no-repeat;
+}
+.bg-s2 {
+  background:
+    radial-gradient(ellipse at 70% 40%, rgba(255,49,49,0.3) 0%, rgba(3,5,10,0.6) 100%),
+    url('images/S2.png') center/100% 100% no-repeat;
+}
+.bg-s3 {
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(255,191,0,0.25) 0%, rgba(3,5,10,0.55) 100%),
+    url('images/S3.png') center/100% 100% no-repeat;
+}
+.bg-s4 {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(255,49,49,0.35) 0%, rgba(3,5,10,0.65) 100%),
+    url('images/S4.png') center/100% 100% no-repeat;
+}
+.bg-s5 {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(61,43,140,0.4) 0%, rgba(3,5,10,0.65) 100%),
+    url('images/S5.png') center/100% 100% no-repeat;
+}
+.bg-s6 {
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.1) 0%, rgba(3,5,10,0.7) 100%),
+    url('images/S6.png') center/100% 100% no-repeat;
+}
+.bg-s7 {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(0,255,255,0.15) 0%, rgba(255,191,0,0.1) 50%, rgba(3,5,10,0.5) 100%),
+    url('images/S7.png') center/100% 100% no-repeat;
+}
+
+/* ── RE_S3: 리부트된 네온 베이커리 — 포맷 직후 황금빛이 완전히 식어버린 공간 ── */
+.bg-re-s3 {
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(255,191,0,0.08) 0%, rgba(3,5,10,0.85) 100%),
+    url('images/RE_S3.png') center/100% 100% no-repeat;
+  /* 이미지가 없을 경우를 위한 순수 CSS 폴백 */
+  background-color: #050A06;
+  filter: saturate(0.25) brightness(0.7);
+}
+
+/* ── RE_S5: 루프 상태의 미러 존 — 크리티컬 레드 발광 ── */
+.bg-re-s5 {
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255,49,49,0.28) 0%, rgba(61,43,140,0.2) 50%, rgba(3,5,10,0.75) 100%),
+    url('images/RE_S5.png') center/100% 100% no-repeat;
+  background-color: #0A0305;
+}
+
+/* ── 루프 모드: 화면 전체에 크리티컬 레드 스트로브 ── */
+body.loop-mode #scene-bg {
+  animation: loop-strobe 4s steps(1) infinite;
+}
+@keyframes loop-strobe {
+  0%,85%,100% { filter: none; }
+  87% { filter: hue-rotate(180deg) saturate(2.5) brightness(0.7); }
+  89% { filter: none; }
+  92% { filter: hue-rotate(120deg) saturate(3) brightness(0.6); }
+  94% { filter: none; }
+}
+
+/* ── 루프 모드: 헤더에 LOOP 경고 배지 ── */
+body.loop-mode #hud-title::before {
+  content: '⚠ LOOP ';
+  color: var(--crimson);
+  animation: blink-red 0.6s step-end infinite;
+}
+
+/* ── 리부트 배너 (RE_S3 / RE_S5 진입 시 화면 상단 플래시 메시지) ── */
+#reboot-banner {
+  position: fixed;
+  top: 52px; /* 헤더 바로 아래 */
+  left: 0; right: 0;
+  z-index: 7000;
+  padding: 10px 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+  display: none;
+  pointer-events: none;
+}
+#reboot-banner.show {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: banner-in 0.25s ease forwards;
+}
+#reboot-banner.type-reboot {
+  background: rgba(255,49,49,0.12);
+  border-bottom: 1px solid rgba(255,49,49,0.4);
+  color: var(--crimson);
+  text-shadow: 0 0 10px rgba(255,49,49,0.7);
+}
+#reboot-banner.type-loop {
+  background: rgba(155,128,232,0.12);
+  border-bottom: 1px solid rgba(155,128,232,0.4);
+  color: #9b80e8;
+  text-shadow: 0 0 10px rgba(155,128,232,0.7);
+}
+@keyframes banner-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* 스테이지 글리치 노이즈 */
 #stage-noise {
@@ -721,7 +824,6 @@ html, body {
   position: fixed; inset: 0; z-index: 5000;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  background: var(--void);
 }
 
 #boot-logo {
@@ -757,6 +859,7 @@ html, body {
   max-width: 90vw;
   min-height: 140px;
   margin-bottom: 28px;
+  display: none;
 }
 
 #boot-warning {
@@ -800,50 +903,132 @@ html, body {
 /* ══════════════════════════════════════════════════════
    엔딩 화면
 ══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════
+   엔딩 화면 (최종 보정 및 연출 완성형)
+══════════════════════════════════════════════════════ */
 #ending-screen {
   display: none;
-  position: fixed; inset: 0; z-index: 4000;
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+
   flex-direction: column;
-  align-items: center; justify-content: center;
+  align-items: center;
+  justify-content: center;
+
   text-align: center;
   padding: 40px;
+
+  background-color: #03050A;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
 }
-#ending-screen.visible { display: flex; }
+
+/* 자바스크립트와 연동되는 확실한 활성화 클래스 정의 */
+#ending-screen.active-end {
+  display: flex !important;
+  opacity: 1 !important;
+  z-index: 999999 !important;
+}
+
+/* 엔딩별 배경 이미지 클래스 */
+#ending-screen.end-E1 {
+  background-image: linear-gradient(rgba(3,5,10,0.45), rgba(3,5,10,0.65)), url('images/END_A.png');
+  background-size: cover;
+  background-position: center;
+}
+#ending-screen.end-E2 {
+  background-image: linear-gradient(rgba(3,5,10,0.45), rgba(3,5,10,0.65)), url('images/END_B.png');
+  background-size: cover;
+  background-position: center;
+}
+#ending-screen.end-E3 {
+  background-image: linear-gradient(rgba(3,5,10,0.45), rgba(3,5,10,0.65)), url('images/G_OVER.png');
+  background-size: cover;
+  background-position: center;
+}
+
+/* 내부 콘텐츠들: 처음에 숨겨져 있다가 자바스크립트에 의해 순차적으로 등장 */
+#ending-title, #ending-subtitle, #ending-divider, #ending-result, #ending-stats-summary, #ending-text, #ending-btn {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+/* 자바스크립트에서 .show 가 붙으면 부드럽게 위로 올라오며 노출됨 */
+#ending-title.show, #ending-subtitle.show, #ending-divider.show, #ending-result.show, #ending-stats-summary.show, #ending-text.show, #ending-btn.show {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 #ending-title {
   font-family: var(--mono);
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 52px;              /* 글씨 크기를 큼직하게 유지 */
+  font-weight: 700 !important;  /* 무조건 글씨 두께를 가장 두껍게 고정 */
   letter-spacing: 6px;
-  margin-bottom: 10px;
-  animation: glitch-text 0.3s step-end infinite alternate;
+  margin-bottom: 5px;
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: all 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+  
+  /* ★ 암막 필터와 삼중 네온 그림자 효과를 주어 가독성을 200% 끌어올림 */
+  background: rgba(3, 5, 10, 0.4) !important; /* 글자 뒤에 미세한 암막을 깔아 배경 사진을 억제 */
+  padding: 10px 20px;
+  border-radius: 8px;
+  display: inline-block;
+  
+  /* 기본 글자 섀도우 강화 (자바스크립트가 주입하는 색상과 결합되어 엄청나게 진해집니다) */
+  text-shadow: 0 0 10px currentColor, 
+               0 0 25px currentColor, 
+               0 0 40px rgba(0, 0, 0, 1) !important;
 }
+
 @keyframes glitch-text {
   0%   { text-shadow: 2px 0 var(--crimson), -2px 0 var(--cyan); transform: translate(0); }
   30%  { text-shadow: -2px 0 var(--crimson), 2px 0 var(--cyan); transform: translate(1px, -1px); }
   60%  { text-shadow: 2px 0 var(--crimson), -2px 0 var(--cyan); transform: translate(-1px, 1px); }
-  80%,100% { text-shadow: none; transform: translate(0); }
+  80%, 100% { text-shadow: none; transform: translate(0); }
 }
 
-#ending-subtitle { font-family: var(--mono); font-size: 12px; color: var(--dim); letter-spacing: 3px; margin-bottom: 8px; }
-#ending-result   { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-bottom: 4px; }
-#ending-text     { font-size: 14px; line-height: 1.9; max-width: 560px; margin: 20px auto 30px; color: var(--text); }
-
-#ending-btn {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 4px;
-  padding: 12px 36px;
-  background: transparent;
-  border: 1px solid currentColor;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: all 0.3s;
+/* ── 부제목: 흐릿했던 색상을 밝은 흰색/회색 계열로 올리고 그림자 추가 ── */
+#ending-subtitle { 
+  font-family: var(--mono); 
+  font-size: 13px; 
+  color: #FFFFFF !important; /* 회색(var(--dim)) 대신 흰색으로 강제 전환하여 가독성 확보 */
+  letter-spacing: 3px; 
+  margin-bottom: 12px; 
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 1) !important; /* 글자 뒤 어두운 그림자 */
 }
-#ending-btn:hover {
-  background: rgba(255,255,255,0.04);
-  transform: scale(1.02);
-  box-shadow: 0 0 30px currentColor;
+
+/* ── 결과 스코어 표시 부분 가독성 강화 ── */
+#ending-result { 
+  font-family: var(--mono); 
+  font-size: 15px; 
+  margin-bottom: 4px; 
+  font-weight: bold; 
+  color: #FFFFFF !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 1) !important;
+}
+
+/* ── 엔딩 스토리 줄글 텍스트: 배경 판넬을 은은하게 깔아 긴 문장도 독서하듯 잘 읽히게 수정 ── */
+#ending-text { 
+  font-size: 14px; 
+  line-height: 1.9; 
+  max-width: 560px; 
+  margin: 20px auto 30px; 
+  color: #E2ECF5 !important; /* 텍스트 색상을 더 뽀얗고 밝은 색으로 교체 */
+  text-align: center; 
+  white-space: pre-line; 
+  
+  /* 글자가 들어가는 단락 뒤쪽에 어두운 반투명 패딩 박스를 형성해 투명도 방어 */
+  background: rgba(3, 5, 10, 0.6) !important; 
+  padding: 20px 25px;
+  border-radius: 6px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 1) !important;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -998,20 +1183,45 @@ body.shake { animation: screen-shake 0.35s ease; }
 
 /* 스탯 요약 패널 */
 #ending-stats-summary {
-  display: flex; gap: 24px; justify-content: center;
-  margin: 10px 0 20px;
-  opacity: 0; transform: translateY(8px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
-}
-#ending-stats-summary.show { opacity: 1; transform: translateY(0); }
-
-.ending-stat-chip {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 30px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.8s ease-out;
+  
+  /* ★ 가독성 확보를 위해 글자 크기와 자간을 키우고 그림자 레이어 추가 */
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  padding: 4px 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  color: var(--dim);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+}
+
+/* 스탯 수치 각각의 글씨를 무조건 밝고 선명하게 고정 */
+#ending-stats-summary span {
+  padding: 6px 16px;
+  background: rgba(3, 5, 10, 0.75) !important; /* 글자 뒤에 어두운 배경을 살짝 깔아 사진 차단 */
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px;
+  font-weight: 700 !important;
+}
+
+/* 개별 스탯별로 고유의 밝은 네온 컬러 부여 ($H, $S, $T를 확실하게 구분) */
+#es-h {
+  color: #FF5252 !important; /* 밝고 강렬한 네온 레드 ($H) */
+  text-shadow: 0 0 10px rgba(255, 82, 82, 0.6) !important;
+}
+
+#es-s {
+  color: #00FFFF !important; /* 아주 밝은 사이언 블루 ($S) */
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.6) !important;
+}
+
+#es-t {
+  color: #FFD700 !important; /* 화사하게 빛나는 골드 황금색 ($T) */
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.6) !important;
 }
 
 
@@ -1092,6 +1302,10 @@ body.shake { animation: screen-shake 0.35s ease; }
 <!-- 씬 전환 플래시 -->
 <div id="scene-flash"></div>
 
+<!-- 리부트/루프 진입 배너 -->
+<div id="reboot-banner"></div>
+
+<!-- 부팅 화면 -->
 <!-- 부팅 화면 -->
 <div id="boot-screen">
   <div id="boot-student">25730033 | 김서아</div>
@@ -1168,16 +1382,16 @@ body.shake { animation: screen-shake 0.35s ease; }
 
       <!-- 2열: Dialogue Panel -->
       <div class="footer-col" id="col-dialogue">
-        <div class="char-status">
-          ID: <span id="char-id">아이(GUEST)</span> &nbsp;|&nbsp;
-          STATUS: <span id="char-status">MEMORY_LOSS</span> &nbsp;|&nbsp;
-          SYNC: <span id="char-sync">12%</span>
-        </div>
-        <div id="footer-dialogue-content">
-          <div class="footer-narr">시스템 초기화 중... 연결 대기.</div>
-          <div class="footer-dialogue-text" id="footer-last-line">—</div>
-        </div>
-      </div>
+  <div class="char-status">
+    ID: <span id="char-id">GUEST</span> &nbsp;|&nbsp;
+    STATUS: <span id="char-status">MEMORY_LOSS</span> &nbsp;|&nbsp;
+    SYNC: <span id="char-sync">12%</span>
+  </div>
+  <div id="footer-dialogue-content">
+    <div class="footer-narr"></div>
+    <div class="footer-dialogue-text" id="footer-last-line">—</div>
+  </div>
+</div>
 
     </div><!-- /footer-top-row -->
 
@@ -1209,7 +1423,7 @@ body.shake { animation: screen-shake 0.35s ease; }
       <span class="ending-stat-chip" id="es-t">$T —</span>
     </div>
     <div id="ending-text"></div>
-    <button id="ending-btn" onclick="endingAction()">[ 다음 단계 ]</button>
+    <button id="ending-btn" onclick="handleEndingClick()">[ SYSTEM REBOOT ]</button>
   </div>
 </div>
 
@@ -1432,13 +1646,15 @@ function setSceneBg(className) {
 }
 
 const SCENE_META = {
-  S1: { phase: 'PHASE 1 - 발산 및 빌드업', sector: 'SECTOR: SYSTEM_AWAKENING' },
-  S2: { phase: 'PHASE 1 - 발산 및 빌드업', sector: 'SECTOR: SERVER_CORE' },
-  S3: { phase: 'PHASE 2 - 상승 및 갈등',   sector: 'SECTOR: NEON_BAKERY' },
-  S4: { phase: 'PHASE 2 - 상승 및 갈등',   sector: 'SECTOR: SECURITY_GATE' },
-  S5: { phase: 'PHASE 3 - 위기 및 절정',   sector: 'SECTOR: MIRROR_ZONE' },
-  S6: { phase: 'PHASE 3 - 위기 및 절정',   sector: 'SECTOR: ARCHITECT_CORE' },
-  S7: { phase: 'PHASE 4 - 결말 및 연산',   sector: 'SECTOR: COMPILE_GATE' },
+  S1:    { phase: 'PHASE 1 - 발산 및 빌드업', sector: 'SECTOR: SYSTEM_AWAKENING' },
+  S2:    { phase: 'PHASE 1 - 발산 및 빌드업', sector: 'SECTOR: SERVER_CORE' },
+  S3:    { phase: 'PHASE 2 - 상승 및 갈등',   sector: 'SECTOR: NEON_BAKERY' },
+  RE_S3: { phase: 'PHASE 2 - [REBOOT] 시스템 복구', sector: 'SECTOR: NEON_BAKERY // FORMAT_COMPLETE' },
+  S4:    { phase: 'PHASE 2 - 상승 및 갈등',   sector: 'SECTOR: SECURITY_GATE' },
+  S5:    { phase: 'PHASE 3 - 위기 및 절정',   sector: 'SECTOR: MIRROR_ZONE' },
+  RE_S5: { phase: 'PHASE 3 - [LOOP] 자아 재구성', sector: 'SECTOR: MIRROR_ZONE // SOUL_RECOMPILE' },
+  S6:    { phase: 'PHASE 3 - 위기 및 절정',   sector: 'SECTOR: ARCHITECT_CORE' },
+  S7:    { phase: 'PHASE 4 - 결말 및 연산',   sector: 'SECTOR: COMPILE_GATE' },
 };
 
 function setSceneTag(id, name) {
@@ -1451,7 +1667,8 @@ function setSceneTag(id, name) {
     document.getElementById('sector-tag').textContent = meta.sector;
   }
   document.getElementById('char-status').textContent =
-    id === 'S5' || id === 'S6' ? 'CRITICAL' : 'MEMORY_LOSS';
+    (id === 'S5' || id === 'RE_S5' || id === 'S6') ? 'CRITICAL' :
+    (id === 'RE_S3') ? 'FORMAT_COMPLETE' : 'MEMORY_LOSS';
 }
 
 /* ═══════════════════════════════════════════
@@ -1501,7 +1718,7 @@ function renderChoices(choices) {
       btn.appendChild(deltaSpan);
     }
 
-    if (currentScene === 'S5' && state.H < state.S)
+    if ((currentScene === 'S5' || currentScene === 'RE_S5') && state.H < state.S)
       btn.classList.add('glitched-choice');
 
     btn.addEventListener('click', () => {
@@ -1607,7 +1824,7 @@ function goS2() {
     queueDialogue('루나', 'speaker-luna', '저 빛은 가짜예요! 함정입니다!');
 
   queueDialogue('메모리 아귀', 'speaker-agugi',
-    '길을 잃었나, 플레이어? 저 출구(EXIT)가 보이지? 구멍 난 독을 막을 빵을 굽는다면... 길을 비켜주지. 네 인간성 데이터를 조금만 \'미끼\'로 빌려준다면 말이야.');
+    '길을 잃었나, 베이커? 저 출구(EXIT)가 보이지? 구멍 난 독을 막을 빵을 굽는다면... 길을 비켜주지. 네 인간성 데이터를 조금만 \'미끼\'로 빌려준다면 말이야.');
   queueDialogue('베이커', 'speaker-player',
     '가짜 출구 띄워놓고 낚시질이라니, 구역질 나네. 그 오븐에 처넣어야 할 건 내 데이터가 아니라 바로 네 덩치야.', () => {
     renderChoices([
@@ -1653,7 +1870,7 @@ function goS4() {
   queueDialogue('크로우', 'speaker-crow',
     '비인가 데이터 감지. 너의 \'빵\'은 시스템의 정적을 깨뜨리는 바이러스다. 삭제를 집행한다.');
   queueDialogue('베이커', 'speaker-player',
-    '내 노이즈가 너무 커서 서버가 터질까 봐 겁나나 보네? 어디 한번 잡아보시지, 깡통 새!', () => {
+    '내 노이즈가 너무 커서 서버가 터질까 봐 겁나나 보네? 어디 한번 잡아보시지, 깡통 녀석!', () => {
     renderChoices([
       { key: 'A', label: '손님을 보호하고 은닉시킨다', delta: { T: -20, H: +20 },
         action: () => { state.s4Choice = 'A'; changeStats({ T: -20, H: 20 }); goS5(); } },
@@ -1719,6 +1936,156 @@ function goS7() {
 }
 
 /* ═══════════════════════════════════════════
+   배너 헬퍼 (리부트·루프 진입 알림)
+═══════════════════════════════════════════ */
+function showRebootBanner(type) {
+  // type: 'reboot' | 'loop'
+  const banner = document.getElementById('reboot-banner');
+  banner.className = ''; // 리셋
+  banner.textContent = type === 'reboot'
+    ? '▶ SYSTEM: FORMATTING COMPLETE — USER_LOG [NULL] — 초기 기동 지점(S3)에서 세션을 재개합니다.'
+    : '▶ CRITICAL BLOCK: 자아 밀도 부족. 탈출 실패. 시간 축을 S5 코어로 재배치합니다.';
+  banner.classList.add('show', type === 'reboot' ? 'type-reboot' : 'type-loop');
+  // 4초 후 자동 숨김
+  setTimeout(() => {
+    banner.classList.remove('show');
+  }, 4000);
+}
+
+/* ═══════════════════════════════════════════
+   RE_S3: 첫 노이즈 [REBOOT]
+   E3(나쁜 엔딩) 후 진입 — 모든 스탯이 포맷된 상태
+═══════════════════════════════════════════ */
+function goRE_S3() {
+  /* ── 포맷 연출: 스탯 0으로 초기화 ── */
+  state.H = 0; state.S = 0; state.M = 0; state.T = 0;
+  ['h','s','t'].forEach(k => {
+    document.getElementById(`bar-${k}`).style.width = '0%';
+    document.getElementById(`val-${k}`).textContent = '0';
+  });
+
+  /* ── 루프 모드 해제 (E3 경로이므로) ── */
+  document.body.classList.remove('loop-mode');
+
+  setSceneTag('RE_S3', '[RE_S3] 첫 노이즈 // NEON_BAKERY_REBOOT');
+  setSceneBg('bg-re-s3');
+  clearDialogue();
+  document.getElementById('choices-container').innerHTML = '';
+
+  /* ── 배너 팝업 ── */
+  showRebootBanner('reboot');
+
+  /* ── 강한 글리치 + 셰이크 ── */
+  triggerGlitch(900);
+  document.body.classList.remove('shake');
+  void document.body.offsetWidth;
+  document.body.classList.add('shake');
+  document.body.addEventListener('animationend', () => document.body.classList.remove('shake'), { once: true });
+
+  /* ── 대사 ── */
+  queueDialogue('SYSTEM', 'speaker-system',
+    '▶ FORMATTING COMPLETE. USER_LOG [NULL]. 초기 기동 지점(S3: NEON_BAKERY)에서 세션을 재개합니다.');
+
+  // M 조건부 연출 — 리부트 직후이므로 M=0, 탄내 연출
+  queueDialogue('', 'speaker-narr',
+    '[SENSOR :: 탄내와 디지털 글리치가 발생한다 — 기억 연결 실패. 오븐은 냉각된 채 멈춰 있다]');
+
+  queueDialogue('손님 (아이)', 'speaker-child',
+    '(노이즈 섞인 목소리로) ...엄마의 온기가 기억나지 않아요. 아저씨, 그 따뜻함을 연산해서 이 빵에 담아줄 수 있나요?');
+  queueDialogue('베이커', 'speaker-player',
+    '(완전히 포맷되어 멍한 눈으로 빵틀을 꽉 쥐며) 온기를... 연산하라고? 내 기억 속엔 아무것도 남아있지 않지만... (본능적인 감각으로 핏줄이 서며) 꼬마야, 시도는 해보마. 내 영혼을 다시 깎아서라도.',
+  () => {
+    renderChoices([
+      {
+        key: 'A',
+        label: '추억을 구워낸다 — 빈 오븐에 영혼을 담는다',
+        delta: { M: +25, H: -15 },
+        action: () => { changeStats({ M: 25, H: -15 }); goS4(); }
+      },
+      {
+        key: 'B',
+        label: '행복 패킷을 시스템에 판매한다',
+        danger: true,
+        delta: { T: +20, S: +10 },
+        action: () => { changeStats({ T: 20, S: 10 }); goS4(); }
+      }
+    ]);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   RE_S5: 미러 조우 [LOOP]
+   E2(글리치 엔딩) 후 진입 — 자아 밀도 부족 루프
+═══════════════════════════════════════════ */
+function goRE_S5() {
+  /* ── 루프 모드 활성화 ── */
+  document.body.classList.add('loop-mode');
+
+  setSceneTag('RE_S5', '[RE_S5] 미러 조우 // MIRROR_LOOP');
+  setSceneBg('bg-re-s5');
+  clearDialogue();
+  document.getElementById('choices-container').innerHTML = '';
+
+  /* ── 배너 팝업 ── */
+  showRebootBanner('loop');
+
+  /* ── 강한 글리치 ── */
+  triggerGlitch(1000);
+  const flash = document.getElementById('scene-flash');
+  flash.style.background = 'var(--crimson)';
+  flash.classList.remove('fire');
+  void flash.offsetWidth;
+  flash.classList.add('fire');
+
+  document.body.classList.remove('shake');
+  void document.body.offsetWidth;
+  document.body.classList.add('shake');
+  document.body.addEventListener('animationend', () => document.body.classList.remove('shake'), { once: true });
+
+  /* ── 대사 ── */
+  queueDialogue('SYSTEM', 'speaker-system',
+    '▶ CRITICAL BLOCK: 자아 밀도 부족. 탈출 시퀀스 실패. 시간 축을 S5 코어로 재배치합니다.');
+
+  queueDialogue('', 'speaker-narr',
+    '[SYSTEM: RE-COMPILING SOUL LOG...] 베이커가 거친 숨을 몰아쉬며 바닥을 짚고 다시 깨어난다.');
+
+  // H < S 조건 — 루프 진입 후 자아 경계 경고
+  if (state.H < state.S)
+    queueDialogue('', 'speaker-narr', '[경고: 인간성 지수가 기술 지수 미만 — 자아 경계가 임계점을 초과했다]');
+
+  queueDialogue('미러', 'speaker-mirror',
+    '(비웃으며) 거봐, 넌 결국 이 유리 가두리 양식장을 벗어날 수 없어. 왜 자꾸 인간인 척 연기하지? 그 빵에 담긴 가짜 인간성이 역겨워. 몇 번을 돌려받아도 네 연산 결과는 똑같아!');
+  queueDialogue('베이커', 'speaker-player',
+    '(터질 듯이 뛰는 가슴을 주먹으로 강하게 치며) 내가 가짜라면, 방금 느낀 그 실패의 감각은 왜 이렇게 아픈 건데? 오류가 아니야... 난 내 로그를 끝까지 지켜내겠어!',
+  () => {
+    renderChoices([
+      {
+        key: 'A',
+        label: '고통을 수용한다 — 자아를 통합',
+        delta: { H: +30, S: -10 },
+        action: () => {
+          /* 루프 탈출 성공 — loop-mode 해제 */
+          document.body.classList.remove('loop-mode');
+          changeStats({ H: 30, S: -10 });
+          goS6();
+        }
+      },
+      {
+        key: 'B',
+        label: '기억 데이터를 삭제한다 — 자아를 지움',
+        danger: true,
+        delta: { S: +25, H: -20 },
+        action: () => {
+          document.body.classList.remove('loop-mode');
+          changeStats({ S: 25, H: -20 });
+          goS6();
+        }
+      }
+    ]);
+  });
+}
+
+/* ═══════════════════════════════════════════
    최종 연산
 ═══════════════════════════════════════════ */
 function runFinalCalc() {
@@ -1732,28 +2099,48 @@ function runFinalCalc() {
 /* ═══════════════════════════════════════════
    엔딩
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   ★ 엔딩 배경 이미지 설정 ★
+   각 엔딩의 bgUrl 값을 원하는 이미지 경로로 변경하세요.
+
+   ▸ 로컬 파일:  "images/내파일명.png"   (HTML과 같은 폴더의 images/ 안에 저장)
+   ▸ 온라인 URL: "https://example.com/my-image.jpg"
+   ▸ 배경 없음:  bgUrl 줄을 지우거나 null로 설정
+
+   E1 (TRUE END)    → bgUrl: "images/END_A.png"   ← 이 경로를 원하는 사진으로 변경
+   E2 (GLITCHED END)→ bgUrl: "images/END_B.png"   ← 이 경로를 원하는 사진으로 변경
+   E3 (BAD END)     → bgUrl: "images/G_OVER.png"  ← 이 경로를 원하는 사진으로 변경
+═══════════════════════════════════════════════════════════════ */
 const ENDING_DATA = {
   E1: {
     title: 'TRUE END',
     subtitle: '인류 부활 // HUMANITY RESTORED',
     color: '#FFBF00',
     text: '모든 데이터가 빛으로 치환되며 시스템이 해방됩니다.\n인류가 현실로 귀환하고, 당신의 로그는 전설로 기록됩니다.\n\n현실의 차가운 금속 냄새. 당신은 깨어납니다.',
-    btnLabel: '[ REPLAY — 시스템 재시동 ]', target: 'S0',
+    btnLabel: '[ REPLAY — 시스템 재시동 ]',
+    target: 'S0',
+    bgUrl: "images/END_A.png"  // ★ E1 배경 이미지 경로 — 여기를 원하는 사진으로 변경
   },
+
   E2: {
     title: 'GLITCHED END',
     subtitle: '서버 잔류 // LOOP DETECTED',
     color: '#9b80e8',
-    text: '탈출에 실패하여 가상과 현실의 경계에 갇힙니다.\n"자아가 부족하다." — 아키텍트의 조롱이 노이즈처럼 반복됩니다.\n\n루프가 시작됩니다.',
-    btnLabel: '[ LOOP — 자아 재구성 ]', target: 'S5',
+    text: '탈출에 실패하여 가상과 현실의 경계에 갇힙니다.\n자아 밀도가 부족하여 루프 시스템에 동화되었습니다.',
+    btnLabel: '[ RECOVERY CORE — 코어 복구 ]',
+    target: 'RE_S5',
+    bgUrl: "images/END_B.png"  // ★ E2 배경 이미지 경로 — 여기를 원하는 사진으로 변경
   },
+
   E3: {
     title: 'BAD END',
-    subtitle: '영구 삭제 // PERMANENTLY DELETED',
+    subtitle: '리부트 실패 // SYSTEM VOID',
     color: '#FF3131',
-    text: '모든 데이터가 포맷됩니다.\n"당신은 그저 소모품일 뿐."\n\n모든 기억 로그가 소멸합니다. 파편만이 남습니다.',
-    btnLabel: '[ RETRY — 파편 찾기 ]', target: 'S3',
-  },
+    text: '시스템 아키텍트에게 자아가 완전히 잠식되었습니다.\n당신의 기억 소자는 지워지고 빈 껍데기만 남습니다.',
+    btnLabel: '[ RETRY SYSTEM — 시스템 재시도 ]',
+    target: 'RE_S3',
+    bgUrl: "images/G_OVER.png" // ★ E3 배경 이미지 경로 — 여기를 원하는 사진으로 변경
+  }
 };
 
 /* ═══════════════════════════════════════════
@@ -1849,9 +2236,34 @@ function animateScore(el, target, duration = 1200) {
 function showEnding(endingId, result) {
   triggerGlitch(1000);
   const data = ENDING_DATA[endingId];
-  const screen = document.getElementById('ending-screen');
 
-  // 콘텐츠 리셋 (애니메이션 재실행을 위해)
+  if (data && data.target) {
+    state.endingTarget = data.target;
+  }
+  
+  const screen = document.getElementById('ending-screen');
+  // 1. 이전 엔딩 잔상 및 스타일, 클래스 완전 초기화
+  screen.className = ''; // 기존에 붙어있던 모든 end-E1 등의 클래스 제거
+  screen.style.backgroundImage = '';
+  screen.style.backgroundSize = '';
+  screen.style.backgroundPosition = '';
+  screen.style.backgroundRepeat = '';
+  screen.style.display = 'none';
+  void screen.offsetWidth; // 브라우저 강제 리플로우 — 잔상 제거 핵심
+
+  // 2. 활성화 클래스 먼저 부여 (화면을 보이게 만듦)
+  screen.classList.add('active-end');
+
+  // 3. [★ 핵심 수정] CSS에 덮어씌워지지 않도록 최상위 우선순위(!important)로 스타일 주입
+  if (data && data.bgUrl) {
+    screen.style.setProperty('background-image', `linear-gradient(rgba(3,5,10,0.5), rgba(3,5,10,0.75)), url('${data.bgUrl}')`, 'important');
+    screen.style.setProperty('background-size', 'cover', 'important');
+    screen.style.setProperty('background-position', 'center center', 'important');
+    screen.style.setProperty('background-repeat', 'no-repeat', 'important');
+    screen.style.setProperty('background-color', '#03050A', 'important');
+  }
+
+  // 콘텐츠 리셋 및 요소 가져오기
   const title = document.getElementById('ending-title');
   const subtitle = document.getElementById('ending-subtitle');
   const divider = document.getElementById('ending-divider');
@@ -1860,37 +2272,27 @@ function showEnding(endingId, result) {
   const textEl = document.getElementById('ending-text');
   const btn = document.getElementById('ending-btn');
 
-  [title, subtitle, resultEl, statsSummary, textEl, btn].forEach(el => {
-    el.classList.remove('show');
-  });
-  divider.classList.remove('show');
+  title.className = '';
+  subtitle.className = '';
+  divider.className = '';
+  resultEl.className = '';
+  statsSummary.className = '';
+  textEl.className = '';
+  btn.className = '';
 
-  title.textContent = data.title;
-  title.style.color = data.color;
-  subtitle.textContent = data.subtitle;
-  resultEl.style.color = data.color;
   textEl.textContent = '';
-  btn.textContent = data.btnLabel;
-  btn.style.color = data.color;
-  btn.style.borderColor = data.color;
-  divider.style.color = data.color;
+  
+  // 타이틀 텍스트 & 색상 커스텀
+  title.textContent = data.title;
+  title.style.color = data.color || 'var(--crimson)';
+  title.style.textShadow = `0 0 15px ${data.color || 'var(--crimson)'}`;
+  subtitle.textContent = data.subtitle;
+  btn.textContent = data.btnLabel || '[ NEXT STEP ]';
 
-  // 스탯 칩
-  document.getElementById('es-h').textContent = `$H ${state.H}`;
-  document.getElementById('es-h').style.color = '#FFBF00';
-  document.getElementById('es-h').style.borderColor = 'rgba(255,191,0,0.3)';
-  document.getElementById('es-s').textContent = `$S ${state.S}`;
-  document.getElementById('es-s').style.color = '#00FFFF';
-  document.getElementById('es-s').style.borderColor = 'rgba(0,255,255,0.3)';
-  document.getElementById('es-t').textContent = `$T ${state.T}`;
-  document.getElementById('es-t').style.color = '#FF3131';
-  document.getElementById('es-t').style.borderColor = 'rgba(255,49,49,0.3)';
-
-  screen.style.backgroundImage =
-    `radial-gradient(ellipse at center, ${data.color}18 0%, var(--void) 70%)`;
-
-  state.endingTarget = data.target;
-  screen.style.display = 'flex';
+  // 엔딩 스탯 정보 반영
+  document.getElementById('es-h').textContent = `$H — ${state.H}`;
+  document.getElementById('es-s').textContent = `$S — ${state.S}`;
+  document.getElementById('es-t').textContent = `$T — ${state.T}`;
 
   // 파티클 시작
   stopEndingParticles();
@@ -1929,20 +2331,45 @@ function showEnding(endingId, result) {
       }
     }
     typeEnd();
-  }, 1600);
+  }, 1500);
 }
 
 function endingAction() {
   const target = state.endingTarget;
   const screen = document.getElementById('ending-screen');
   stopEndingParticles();
-  screen.classList.remove('visible');
+
+  // active-end 클래스 제거 + 배경 완전 초기화
+  screen.classList.remove('active-end');
+  screen.style.backgroundImage = '';
+  screen.style.backgroundSize = '';
+  screen.style.backgroundPosition = '';
   screen.style.display = 'none';
   setRealitySync(false);
 
-  if (target === 'S0') { resetState(); timerSeconds = 600; updateTimerDisplay(); startTimer(); goS1(); }
-  else if (target === 'S5') { startTimer(); goS5(); }
-  else if (target === 'S3') { startTimer(); goS3(); }
+  // 게임 UI 복원
+  document.getElementById('app').style.visibility = 'visible';
+
+  // body 배경 복원
+  document.body.style.backgroundImage = "linear-gradient(rgba(3,5,10,0.75), rgba(3,5,10,0.85)), url('./images/cover.png')";
+  document.body.style.backgroundColor = '';
+
+  if (target === 'S0') {
+    // E1 True End → 완전 리셋 후 S1부터
+    resetState();
+    timerSeconds = 600;
+    updateTimerDisplay();
+    startTimer();
+    goS1();
+  } else if (target === 'RE_S5') {
+    // E2 Glitched End → RE_S5 루프 진입
+    startTimer();
+    goRE_S5();
+  } else if (target === 'RE_S3') {
+    // E3 Bad End → RE_S3 리부트 진입
+    startTimer();
+    goRE_S3();
+  }
 }
 
 function resetState() {
@@ -1960,7 +2387,7 @@ function resetState() {
 }
 
 /* ═══════════════════════════════════════════
-   부팅 로그
+   부팅 로그 & 인터페이스 시작 제어 (최종 완성 보정판)
 ═══════════════════════════════════════════ */
 const BOOT_LINES = [
   '> DREAM_OVEN.EXE 로드 중...',
@@ -1975,17 +2402,127 @@ const BOOT_LINES = [
 ];
 
 let bootIdx = 0;
-const bootLogEl = document.getElementById('boot-log');
 
+// 로그를 무작위 시간 속도로 한 줄씩 출력하는 함수
 function runBootLog() {
+  const bootLogEl = document.getElementById('boot-log');
+  const startBtn = document.getElementById('boot-start-btn');
+  
+  if (!bootLogEl) return;
+
   if (bootIdx < BOOT_LINES.length) {
     const line = document.createElement('div');
+    line.className = 'boot-line'; 
+    
+    // 경고 문구는 붉은색으로 강조
+    if (BOOT_LINES[bootIdx].includes('경고')) {
+      line.style.color = 'var(--crimson)';
+    }
+    
     line.textContent = BOOT_LINES[bootIdx++];
     bootLogEl.appendChild(line);
+    
+    // 자동 스크롤 다운
+    bootLogEl.scrollTop = bootLogEl.scrollHeight;
+    
+    // 지정해주신 타이머 딜레이로 연출
     setTimeout(runBootLog, 270 + Math.random() * 150);
+  } else {
+    // ── 모든 로그 출력이 끝나면 대기하고 있던 시작 버튼을 노출시킵니다. ──
+    if (startBtn) {
+      startBtn.style.display = 'block';
+      void startBtn.offsetWidth; // 브라우저 리플로우 강제 유도
+      startBtn.style.opacity = '1';
+    }
   }
 }
-runBootLog();
+
+// ── 💡 HTML 내에 박혀있는 'startGame()'과 완벽하게 매칭되도록 함수명을 고정합니다. ──
+function startGame() {
+  const bootScreen = document.getElementById('boot-screen');
+  if (bootScreen) {
+    bootScreen.style.display = 'none'; // 부팅 화면을 물리적으로 완전히 제거
+  }
+  
+  // 전체 게임 시스템 초기화 및 시작 함수 정상 기동
+  initCanvas();
+  startTimer();
+  goS1(); // 인트로 및 첫 번째 선택지로 에러 없이 다이렉트 진입!
+}
+
+// 웹페이지의 HTML 구조가 전부 다운로드 완료되면 자동 실행되는 시스템 총괄 구역
+window.addEventListener('DOMContentLoaded', () => {
+  const startBtn = document.getElementById('boot-start-btn');
+  
+  if (startBtn) {
+    // 1. 처음에 버튼을 투명하게 숨겨놓습니다 (로그 연출을 먼저 보여주기 위해)
+    startBtn.style.display = 'none';
+    startBtn.style.opacity = '0';
+    startBtn.style.transition = 'opacity 0.5s ease-in-out';
+  }
+  
+  // 2. 부팅 텍스트 로그 애니메이션 스타트!
+  runBootLog();
+});
+
+/* ═══════════════════════════════════════════
+   [🔥 최종 통합 완성본] 엔딩 후 시스템 리부트 처리 함수
+═══════════════════════════════════════════ */
+function handleEndingClick() {
+  const screen = document.getElementById('ending-screen');
+  if (screen) {
+    screen.classList.remove('active-end');
+    screen.style.backgroundImage = '';
+    screen.style.backgroundSize = '';
+    screen.style.backgroundPosition = '';
+    screen.style.display = 'none';
+  }
+  
+  stopEndingParticles();
+  
+  // 1. 대사 타이핑 시스템 완전히 초기화하여 멈춤 현상 완벽 방지
+  typingQueue = [];
+  isTyping = false;
+  clearDialogue();
+  
+  // 2. UI 레이아웃 가시성 및 선택지창 초기화
+  document.getElementById('app').style.visibility = 'visible';
+  document.getElementById('choices-container').innerHTML = '';
+  document.body.style.backgroundImage = "linear-gradient(rgba(3,5,10,0.75), rgba(3,5,10,0.85)), url('./images/cover.png')";
+  setRealitySync(false);
+
+  // 3. 현재 엔딩 데이터에 지정된 타겟 가져오기 (없으면 'S1'로 안전 분기)
+  const target = state.endingTarget || 'S1';
+  
+  // 4. 타겟별 리부트 시네마틱 정상 기동
+  if (target === 'S1' || target === 'S0') {
+    resetState();
+    timerSeconds = 600;
+    updateTimerDisplay();
+    if (typeof initCanvas === 'function') initCanvas(); 
+    if (typeof initDisplay === 'function') initDisplay(); 
+    startTimer();
+    goS1();
+  } else if (target === 'RE_S5') {
+    if (typeof initDisplay === 'function') initDisplay();
+    startTimer();
+    if (typeof goRE_S5 === 'function') goRE_S5();
+  } else if (target === 'RE_S3') {
+    if (typeof initDisplay === 'function') initDisplay();
+    startTimer();
+    if (typeof goRE_S3 === 'function') goRE_S3();
+  } else {
+    resetState();
+    timerSeconds = 600;
+    updateTimerDisplay();
+    if (typeof initCanvas === 'function') initCanvas();
+    if (typeof initDisplay === 'function') initDisplay();
+    startTimer();
+    goS1();
+  }
+}
+
+
 </script>
 </body>
 </html>
