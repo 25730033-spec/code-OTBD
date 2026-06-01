@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CODE: DREAM OVEN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+
+/* ═══════════════════════════════════════════
+   CSS 변수
+═══════════════════════════════════════════ */
+:root {
+  --void:    #03050A;
+  --crimson: #FF3131;
+  --golden:  #FFBF00;
+  --cyan:    #00FFFF;
+
+  --crimson-dim: rgba(255,49,49,0.2);
+  --golden-dim:  rgba(255,191,0,0.2);
+  --cyan-dim:    rgba(0,255,255,0.2);
+
+  --text:    #b8ccd8;
+  --dim:     #3a4a5a;
+
+  --mono: 'Share Tech Mono', monospace;
+  --story: 'Noto Sans KR', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--story);
+  cursor: crosshair;
+}
+
+/* ═══════════════════════════════════════════
+   전역 스캔라인 오버레이 (20% 투명도 격자)
+═══════════════════════════════════════════ */
+#scanlines {
+  position: fixed; inset: 0; z-index: 9000;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,255,255,0.03) 3px,
+    rgba(0,255,255,0.03) 4px
+  );
+}
+
+/* ═══════════════════════════════════════════
+   글리치 플래시 오버레이
+═══════════════════════════════════════════ */
+#glitch-overlay {
+  position: fixed; inset: 0; z-index: 8999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.05s;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0,255,255,0.06) 30%,
+    rgba(255,49,49,0.06) 31%,
+    transparent 70%
+  );
+}
+#glitch-overlay.active { opacity: 1; }
+
+/* ═══════════════════════════════════════════
+   파티클 캔버스
+═══════════════════════════════════════════ */
+#particle-canvas {
+  position: fixed; inset: 0; z-index: 1;
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+/* ═══════════════════════════════════════════
+   스모그 레이어
+═══════════════════════════════════════════ */
+#smog {
+  position: fixed; inset: 0; z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse 120% 60% at 50% 50%, rgba(255,191,0,0.04) 0%, transparent 70%);
+  animation: smog-drift 12s ease-in-out infinite alternate;
+}
+@keyframes smog-drift {
+  0%   { transform: translate(-5%, -3%) scale(1.05); opacity: 0.6; }
+  50%  { transform: translate(3%, 5%)  scale(1.0);  opacity: 1;   }
+  100% { transform: translate(-2%, 2%) scale(1.08); opacity: 0.7; }
+}
+
+/* ═══════════════════════════════════════════
+   앱 루트 — 3단 수직 스택
+═══════════════════════════════════════════ */
+#app {
+  position: fixed; inset: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+/* ══════════════════════════════════════════════════════
+   ① 헤더 (고정)
+══════════════════════════════════════════════════════ */
+#header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+  height: 52px;
+  background: rgba(3,5,10,0.96);
+  border-bottom: 1px solid rgba(0,255,255,0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 헤더 상단 발광선 */
+#header::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.5;
+}
+
+/* ── 타이틀 캡슐 (좌측) ── */
+#hud-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--crimson);
+  text-shadow: 0 0 10px var(--crimson), 0 0 20px rgba(255,49,49,0.4);
+  padding: 4px 12px;
+  border: 1px solid rgba(255,49,49,0.3);
+  background: rgba(255,49,49,0.05);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* 타이틀 스캔라인 흐름 */
+#hud-title::after {
+  content: '';
+  position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,49,49,0.15), transparent);
+  animation: scan-sweep 3s linear infinite;
+}
+@keyframes scan-sweep {
+  0%   { left: -60%; }
+  100% { left: 160%; }
+}
+
+/* ── 스탯 게이지 트리오 (중앙) ── */
+#hud-stats {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 68px;
+}
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+.stat-bar-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  position: relative;
+  overflow: visible;
+}
+
+.stat-bar {
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.25,0.46,0.45,0.94);
+  position: relative;
+}
+
+/* 스탯바 끝단 발광 */
+.stat-bar::after {
+  content: '';
+  position: absolute;
+  right: -1px; top: -3px;
+  width: 3px; height: 9px;
+  background: inherit;
+  filter: blur(4px);
+  opacity: 0.9;
+}
+
+/* 맥동 애니메이션 */
+.stat-bar.pulse { animation: bar-pulse 0.5s ease; }
+@keyframes bar-pulse {
+  0%,100% { filter: brightness(1); }
+  50%      { filter: brightness(2.5); }
+}
+
+.bar-h { background: var(--golden); box-shadow: 0 0 8px var(--golden); }
+.bar-s { background: var(--cyan);   box-shadow: 0 0 8px var(--cyan);   }
+.bar-t { background: var(--crimson);box-shadow: 0 0 8px var(--crimson);}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text);
+  transition: color 0.3s;
+}
+
+/* ── REALITY_SYNC 박스 (우측) ── */
+#reality-sync {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 4px 10px;
+  border: 1px solid rgba(0,255,255,0.3);
+  color: var(--cyan);
+  text-shadow: 0 0 8px var(--cyan);
+  box-shadow: 0 0 10px rgba(0,255,255,0.1);
+  white-space: nowrap;
+  transition: all 0.5s;
+}
+#reality-sync.true {
+  border-color: rgba(255,191,0,0.6);
+  color: var(--golden);
+  text-shadow: 0 0 12px var(--golden), 0 0 30px rgba(255,191,0,0.6);
+  box-shadow: 0 0 20px rgba(255,191,0,0.3);
+  animation: sync-glow 1.5s ease-in-out infinite;
+}
+@keyframes sync-glow {
+  0%,100% { box-shadow: 0 0 10px rgba(255,191,0,0.3); }
+  50%     { box-shadow: 0 0 30px rgba(255,191,0,0.7); }
+}
+
+/* ══════════════════════════════════════════════════════
+   ② 스테이지 (가변 — 씬 이미지 배경)
+══════════════════════════════════════════════════════ */
+#stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 씬 배경 레이어 */
+#scene-bg {
+  position: absolute; inset: 0;
+  transition: background 1.2s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 씬별 배경 */
+.bg-s1 { background: radial-gradient(ellipse at 30% 70%, rgba(0,80,120,0.3) 0%, var(--void) 65%), var(--void); }
+.bg-s2 { background: radial-gradient(ellipse at 70% 40%, rgba(255,49,49,0.18) 0%, var(--void) 65%), var(--void); }
+.bg-s3 { background: radial-gradient(ellipse at 50% 60%, rgba(255,191,0,0.2) 0%, var(--void) 65%), var(--void); }
+.bg-s4 { background: radial-gradient(ellipse at 50% 50%, rgba(255,49,49,0.28) 0%, var(--void) 65%), var(--void); }
+.bg-s5 { background: radial-gradient(ellipse at 50% 50%, rgba(61,43,140,0.32) 0%, var(--void) 65%), var(--void); }
+.bg-s6 { background: radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.07) 0%, var(--void) 60%), var(--void); }
+.bg-s7 { background: radial-gradient(ellipse at 50% 50%, rgba(0,255,255,0.12) 0%, rgba(255,191,0,0.08) 50%, var(--void) 80%), var(--void); }
+
+/* 스테이지 글리치 노이즈 */
+#stage-noise {
+  position: absolute; inset: 0; z-index: 1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.25;
+  animation: noise-flicker 0.15s steps(1) infinite;
+}
+@keyframes noise-flicker {
+  0%,100% { opacity: 0.25; transform: translate(0,0); }
+  25% { opacity: 0.3; transform: translate(-1px, 1px); }
+  50% { opacity: 0.2; transform: translate(1px, -1px); }
+  75% { opacity: 0.28; transform: translate(-1px, 0); }
+}
+
+/* 카운트다운 타이머 (우측 하단 오버레이) */
+#stage-timer {
+  position: absolute;
+  bottom: 16px; right: 20px;
+  z-index: 10;
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--crimson);
+  text-shadow: 0 0 12px var(--crimson), 0 0 30px rgba(255,49,49,0.5);
+}
+#stage-timer.critical {
+  animation: timer-crit 0.4s step-end infinite;
+}
+@keyframes timer-crit {
+  0%,100% { opacity: 1; color: var(--crimson); }
+  50% { opacity: 0.2; color: #fff; }
+}
+
+/* 대화 영역 */
+#dialogue-area {
+  flex: 1;
+  position: relative; z-index: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px 28px 16px;
+  overflow: hidden;
+}
+
+#dialogue-log {
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,255,0.2) transparent;
+}
+#dialogue-log::-webkit-scrollbar { width: 2px; }
+#dialogue-log::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.2); }
+
+.dialogue-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fadeInUp 0.35s ease forwards;
+}
+@keyframes fadeInUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dialogue-speaker {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* 스피커 색상 */
+.speaker-system { color: var(--crimson); text-shadow: 0 0 8px rgba(255,49,49,0.6); }
+.speaker-player { color: var(--cyan);    text-shadow: 0 0 8px rgba(0,255,255,0.5); }
+.speaker-luna   { color: #88d8b0; }
+.speaker-agugi  { color: var(--golden);  text-shadow: 0 0 8px rgba(255,191,0,0.5); }
+.speaker-child  { color: #ffccbc; }
+.speaker-crow   { color: #9b80e8; text-shadow: 0 0 8px rgba(155,128,232,0.5); }
+.speaker-mirror { color: #9e9e9e; }
+.speaker-arch   { color: #fff; text-shadow: 0 0 15px rgba(255,255,255,0.6); }
+.speaker-narr   { color: var(--golden); font-style: italic; }
+
+.dialogue-text {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text);
+  padding-left: 12px;
+  border-left: 2px solid rgba(255,191,0,0.25);
+}
+
+.typing-cursor::after {
+  content: '█';
+  animation: blink 0.7s step-end infinite;
+  color: var(--cyan);
+  font-size: 11px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ══════════════════════════════════════════════════════
+   ③ 하단 정보 허브 (3열 그리드 고정 푸터)
+══════════════════════════════════════════════════════ */
+#footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(3,5,10,0.97);
+  border-top: 1px solid rgba(0,255,255,0.15);
+  position: relative;
+  min-height: 200px;
+  max-height: 300px;
+}
+
+/* 상단행: 위치정보 + 대화 */
+#footer-top-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  border-bottom: 1px solid rgba(0,255,255,0.08);
+  flex-shrink: 0;
+}
+
+/* 하단행: 선택지 풀 너비 */
+#footer-bottom-row {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 16px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 푸터 상단 발광선 */
+#footer::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--cyan-dim) 20%, var(--cyan) 50%, var(--cyan-dim) 80%, transparent 100%);
+  opacity: 0.5;
+}
+
+/* 열 구분선 */
+.footer-col {
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+.footer-col + .footer-col {
+  border-left: 1px solid rgba(0,255,255,0.08);
+}
+
+/* ── 1열: Location Info ── */
+#col-location {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.phase-tag {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+#scene-name-big {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(0,255,255,0.5);
+  letter-spacing: 1px;
+  line-height: 1.2;
+}
+
+.sector-tag {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: rgba(0,255,255,0.4);
+  margin-top: 4px;
+}
+
+/* ID TAG 글리치 */
+#id-tag-box {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--golden);
+  padding: 4px 8px;
+  border: 1px solid rgba(255,191,0,0.2);
+  background: rgba(255,191,0,0.03);
+  animation: id-glitch 3s steps(1) infinite;
+  position: relative;
+}
+@keyframes id-glitch {
+  0%,90%,100% { transform: translate(0); filter: none; opacity: 1; }
+  91% { transform: translate(-2px, 1px); filter: blur(0.5px); opacity: 0.7; clip-path: inset(30% 0 40% 0); }
+  92% { transform: translate(2px, -1px); filter: none; opacity: 1; clip-path: none; }
+  93% { transform: translate(-1px, 0); filter: blur(0.3px); opacity: 0.8; clip-path: inset(50% 0 20% 0); }
+  94% { transform: translate(0); filter: none; opacity: 1; clip-path: none; }
+}
+
+/* ── 2열: Dialogue Panel ── */
+#col-dialogue {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.char-status {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.char-status span { color: var(--cyan); }
+
+#footer-dialogue-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 골든 메모리 수직 포인트 라인 */
+#footer-dialogue-content::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--golden), transparent);
+  opacity: 0.6;
+}
+
+.footer-narr {
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(184,204,216,0.5);
+  padding-left: 14px;
+  font-style: italic;
+}
+
+.footer-dialogue-text {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text);
+  padding-left: 14px;
+  overflow-y: auto;
+  max-height: 100px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,191,0,0.2) transparent;
+}
+
+/* ── 3열: Interaction Panel ── */
+#col-interaction {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+/* 상단 nav 버튼 */
+#nav-btns {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.nav-btn {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid rgba(0,255,255,0.2);
+  color: rgba(0,255,255,0.5);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+.nav-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 10px rgba(0,255,255,0.15);
+}
+
+/* 선택지 카드 컨테이너 */
+#choices-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,255,0.1) transparent;
+  align-content: flex-start;
+}
+
+/* 선택지 카드 — 글래스모피즘 */
+.choice-btn {
+  position: relative;
+  background: rgba(0,255,255,0.03);
+  border: 1px solid rgba(0,255,255,0.25);
+  color: var(--text);
+  font-family: var(--story);
+  font-size: 12px;
+  padding: 9px 12px 9px 36px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 10px rgba(0,255,255,0.05);
+  flex: 1 1 calc(50% - 4px);
+  min-width: 200px;
+}
+
+/* 글래스모피즘 내부 반사 */
+.choice-btn::before {
+  content: attr(data-key);
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 1px;
+}
+
+/* 왼쪽 포인트 바 */
+.choice-btn::after {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: rgba(0,255,255,0.4);
+  box-shadow: 0 0 8px var(--cyan);
+  transition: all 0.2s;
+}
+
+.choice-btn:hover {
+  background: rgba(0,255,255,0.07);
+  border-color: rgba(0,255,255,0.6);
+  color: #fff;
+  box-shadow: 0 0 15px rgba(0,255,255,0.12), inset 0 0 20px rgba(0,255,255,0.03);
+  transform: translateX(2px);
+}
+.choice-btn:hover::after {
+  width: 3px;
+  background: var(--cyan);
+  box-shadow: 0 0 12px var(--cyan);
+}
+
+/* 위험 버튼 (커럽티드 크림슨 테두리) */
+.choice-btn.danger {
+  background: rgba(255,49,49,0.04);
+  border-color: rgba(255,49,49,0.3);
+  box-shadow: 0 0 10px rgba(255,49,49,0.05);
+}
+.choice-btn.danger::before { color: var(--crimson); }
+.choice-btn.danger::after  { background: rgba(255,49,49,0.4); box-shadow: 0 0 8px var(--crimson); }
+.choice-btn.danger:hover {
+  background: rgba(255,49,49,0.08);
+  border-color: rgba(255,49,49,0.7);
+  box-shadow: 0 0 15px rgba(255,49,49,0.15);
+}
+.choice-btn.danger:hover::after { width: 3px; background: var(--crimson); box-shadow: 0 0 12px var(--crimson); }
+
+/* 스탯 예고 */
+.choice-delta {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  margin-top: 2px;
+  display: block;
+  transition: color 0.2s;
+}
+.choice-btn:hover .choice-delta { color: rgba(0,255,255,0.5); }
+.choice-btn.danger:hover .choice-delta { color: rgba(255,49,49,0.5); }
+
+/* 단일 액션 버튼 */
+.action-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid rgba(0,255,255,0.3);
+  color: var(--cyan);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  text-align: center;
+}
+.action-btn:hover {
+  background: rgba(0,255,255,0.08);
+  border-color: var(--cyan);
+  box-shadow: 0 0 20px rgba(0,255,255,0.2);
+}
+
+/* ══════════════════════════════════════════════════════
+   스탯 플로팅 팝업
+══════════════════════════════════════════════════════ */
+.stat-popup {
+  position: fixed;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: stat-float 1.5s ease-out forwards;
+}
+@keyframes stat-float {
+  0%   { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; transform: translateY(-28px); }
+  100% { opacity: 0; transform: translateY(-36px); }
+}
+
+/* ══════════════════════════════════════════════════════
+   부팅 화면 S0
+══════════════════════════════════════════════════════ */
+#boot-screen {
+  position: fixed; inset: 0; z-index: 5000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--void);
+}
+
+#boot-logo {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 6px;
+  text-shadow: 0 0 30px rgba(0,255,255,0.8);
+  margin-bottom: 4px;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+@keyframes pulse-glow {
+  0%,100% { text-shadow: 0 0 20px rgba(0,255,255,0.6); }
+  50%      { text-shadow: 0 0 40px rgba(0,255,255,1), 0 0 80px rgba(0,255,255,0.4); }
+}
+
+#boot-subtitle {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 3px;
+  margin-bottom: 36px;
+}
+
+#boot-log {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(0,255,255,0.5);
+  line-height: 1.9;
+  text-align: left;
+  width: 480px;
+  max-width: 90vw;
+  min-height: 140px;
+  margin-bottom: 28px;
+}
+
+#boot-warning {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--crimson);
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(255,49,49,0.7);
+  margin-bottom: 28px;
+  animation: blink-red 1s step-end infinite;
+}
+@keyframes blink-red { 50% { opacity: 0.2; } }
+
+#boot-start-btn {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 6px;
+  padding: 14px 48px;
+  background: transparent;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+#boot-start-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(0,255,255,0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+#boot-start-btn:hover::before { transform: translateX(100%); }
+#boot-start-btn:hover {
+  background: rgba(0,255,255,0.06);
+  box-shadow: 0 0 30px rgba(0,255,255,0.25);
+}
+
+/* ══════════════════════════════════════════════════════
+   엔딩 화면
+══════════════════════════════════════════════════════ */
+#ending-screen {
+  display: none;
+  position: fixed; inset: 0; z-index: 4000;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 40px;
+}
+#ending-screen.visible { display: flex; }
+
+#ending-title {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  margin-bottom: 10px;
+  animation: glitch-text 0.3s step-end infinite alternate;
+}
+@keyframes glitch-text {
+  0%   { text-shadow: 2px 0 var(--crimson), -2px 0 var(--cyan); transform: translate(0); }
+  30%  { text-shadow: -2px 0 var(--crimson), 2px 0 var(--cyan); transform: translate(1px, -1px); }
+  60%  { text-shadow: 2px 0 var(--crimson), -2px 0 var(--cyan); transform: translate(-1px, 1px); }
+  80%,100% { text-shadow: none; transform: translate(0); }
+}
+
+#ending-subtitle { font-family: var(--mono); font-size: 12px; color: var(--dim); letter-spacing: 3px; margin-bottom: 8px; }
+#ending-result   { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-bottom: 4px; }
+#ending-text     { font-size: 14px; line-height: 1.9; max-width: 560px; margin: 20px auto 30px; color: var(--text); }
+
+#ending-btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 4px;
+  padding: 12px 36px;
+  background: transparent;
+  border: 1px solid currentColor;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+#ending-btn:hover {
+  background: rgba(255,255,255,0.04);
+  transform: scale(1.02);
+  box-shadow: 0 0 30px currentColor;
+}
+
+/* ══════════════════════════════════════════════════════
+   조건부 글리치 선택지
+══════════════════════════════════════════════════════ */
+.glitched-choice .choice-text {
+  animation: text-glitch 0.8s step-end infinite;
+}
+@keyframes text-glitch {
+  0%,90%,100% { clip-path: none; transform: none; }
+  92% { clip-path: inset(20% 0 60% 0); transform: translate(-3px, 0); }
+  94% { clip-path: inset(60% 0 10% 0); transform: translate(3px, 0); }
+  96% { clip-path: none; transform: none; }
+}
+
+/* HUD 바 플래시 */
+.stat-bar.flash { animation: bar-flash 0.3s ease 2; }
+@keyframes bar-flash { 50% { filter: brightness(3); } }
+
+button:focus-visible { outline: 1px solid var(--cyan); outline-offset: 2px; }
+
+/* ══════════════════════════════════════════════════════
+   선택지 선택 시 — 선택 확정 애니메이션
+══════════════════════════════════════════════════════ */
+.choice-btn.selected {
+  animation: choice-confirm 0.55s ease forwards;
+  pointer-events: none;
+  z-index: 10;
+}
+@keyframes choice-confirm {
+  0%   { transform: scale(1); filter: brightness(1); }
+  20%  { transform: scale(1.04); filter: brightness(2.5); box-shadow: 0 0 40px var(--cyan), inset 0 0 30px rgba(0,255,255,0.15); }
+  45%  { transform: scale(1.02); filter: brightness(1.8); }
+  70%  { transform: scale(1.01); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.choice-btn.danger.selected {
+  animation: choice-confirm-danger 0.55s ease forwards;
+}
+@keyframes choice-confirm-danger {
+  0%   { transform: scale(1); filter: brightness(1); }
+  20%  { transform: scale(1.04); filter: brightness(2.5); box-shadow: 0 0 40px var(--crimson), inset 0 0 30px rgba(255,49,49,0.15); }
+  45%  { transform: scale(1.02); filter: brightness(1.8); }
+  70%  { transform: scale(1.01); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* 씬 전환 화이트 플래시 */
+#scene-flash {
+  position: fixed; inset: 0; z-index: 8998;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--cyan);
+  mix-blend-mode: screen;
+}
+#scene-flash.fire { animation: scene-flash-anim 0.5s ease-out forwards; }
+@keyframes scene-flash-anim {
+  0%   { opacity: 0.18; }
+  30%  { opacity: 0.12; }
+  100% { opacity: 0; }
+}
+
+/* 화면 셰이크 */
+@keyframes screen-shake {
+  0%,100% { transform: translate(0,0); }
+  15% { transform: translate(-4px, 2px); }
+  30% { transform: translate(3px, -3px); }
+  45% { transform: translate(-2px, 1px); }
+  60% { transform: translate(4px, -1px); }
+  75% { transform: translate(-1px, 3px); }
+  90% { transform: translate(2px, -2px); }
+}
+body.shake { animation: screen-shake 0.35s ease; }
+
+/* ══════════════════════════════════════════════════════
+   엔딩 화면 — 인트로 + 파티클 + 타이핑
+══════════════════════════════════════════════════════ */
+#ending-screen {
+  overflow: hidden;
+}
+
+/* 엔딩 파티클 캔버스 */
+#ending-particle-canvas {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 엔딩 콘텐츠 래퍼 */
+#ending-content {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px;
+  width: 100%;
+}
+
+/* 엔딩 타이틀 인트로 */
+#ending-title {
+  opacity: 0;
+  animation: none;
+}
+#ending-title.show {
+  animation: ending-title-in 0.6s cubic-bezier(0.22,1,0.36,1) forwards, glitch-text 0.3s step-end infinite alternate;
+}
+@keyframes ending-title-in {
+  0%   { opacity: 0; transform: scale(0.8) translateY(20px); letter-spacing: 20px; }
+  60%  { opacity: 1; transform: scale(1.03) translateY(-4px); letter-spacing: 7px; }
+  100% { opacity: 1; transform: scale(1) translateY(0); letter-spacing: 6px; }
+}
+
+#ending-subtitle, #ending-result, #ending-text, #ending-btn {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+#ending-subtitle.show, #ending-result.show, #ending-text.show, #ending-btn.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 스코어 카운트업 강조 */
+#ending-result {
+  font-size: 18px !important;
+  color: var(--golden) !important;
+  letter-spacing: 3px;
+}
+
+/* 엔딩 구분선 */
+#ending-divider {
+  width: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  margin: 16px auto;
+  transition: width 0.8s ease;
+  opacity: 0.5;
+}
+#ending-divider.show { width: 320px; }
+
+/* 엔딩 배경 스캔라인 흐름 */
+#ending-screen::after {
+  content: '';
+  position: absolute; inset: 0; z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+  animation: ending-scanline 8s linear infinite;
+}
+@keyframes ending-scanline {
+  0%   { background-position-y: 0; }
+  100% { background-position-y: 40px; }
+}
+
+/* 스탯 요약 패널 */
+#ending-stats-summary {
+  display: flex; gap: 24px; justify-content: center;
+  margin: 10px 0 20px;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+#ending-stats-summary.show { opacity: 1; transform: translateY(0); }
+
+.ending-stat-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  padding: 4px 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--dim);
+}
+
+
+/* ══════════════════════════════════════════════════════
+   학번 / 이름 (표지 상단)
+══════════════════════════════════════════════════════ */
+#boot-student {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: rgba(0,255,255,0.55);
+  margin-bottom: 10px;
+  text-shadow: 0 0 8px rgba(0,255,255,0.3);
+}
+
+/* ══════════════════════════════════════════════════════
+   전역 폰트 크기 +3pt 보정
+══════════════════════════════════════════════════════ */
+.dialogue-text      { font-size: 16px !important; }
+.footer-narr        { font-size: 14px !important; }
+.footer-dialogue-text { font-size: 15px !important; }
+#scene-name-big     { font-size: 20px !important; }
+.stat-value         { font-size: 12px !important; }
+.stat-label         { font-size: 11px !important; }
+.phase-tag          { font-size: 11px !important; }
+.sector-tag         { font-size: 11px !important; }
+#id-tag-box         { font-size: 12px !important; }
+.char-status        { font-size: 11px !important; }
+.dialogue-speaker   { font-size: 12px !important; }
+#ending-text        { font-size: 17px !important; }
+#ending-subtitle    { font-size: 15px !important; }
+#ending-result      { font-size: 15px !important; }
+#boot-subtitle      { font-size: 12px !important; }
+#boot-log           { font-size: 13px !important; }
+#boot-warning       { font-size: 15px !important; }
+#boot-start-btn     { font-size: 16px !important; }
+
+/* ══════════════════════════════════════════════════════
+   선택지 카드 — 더 크고 읽기 쉽게
+══════════════════════════════════════════════════════ */
+.choice-btn {
+  font-size: 15px !important;
+  padding: 14px 16px 14px 44px !important;
+  line-height: 1.6 !important;
+}
+.choice-btn::before {
+  font-size: 13px !important;
+  left: 14px !important;
+}
+.choice-delta {
+  font-size: 11px !important;
+  margin-top: 4px !important;
+}
+#choices-container {
+  gap: 8px !important;
+}
+#footer {
+  min-height: 250px !important;
+  max-height: 320px !important;
+}
+#footer-top-row {
+  max-height: 140px;
+}
+#footer-bottom-row {
+  min-height: 100px;
+}
+
+</style>
+</head>
+<body>
+
+<!-- 배경 레이어들 -->
+<canvas id="particle-canvas"></canvas>
+<div id="smog"></div>
+<div id="scanlines"></div>
+<div id="glitch-overlay"></div>
+
+<!-- 씬 전환 플래시 -->
+<div id="scene-flash"></div>
+
+<!-- 부팅 화면 -->
+<div id="boot-screen">
+  <div id="boot-student">25730033 | 김서아</div>
+  <div id="boot-logo">CODE: Oven to Bake Dreams</div>
+  <div id="boot-subtitle">// DREAM_OVEN.EXE v2.7.4 — UNAUTHORIZED ACCESS DETECTED //</div>
+  <div id="boot-log"></div>
+  <div id="boot-warning">⚠ 소거까지 600초 / ERASURE IN 600 SECONDS ⚠</div>
+  <button id="boot-start-btn" onclick="startGame()">[ 프로그램 가동 ]</button>
+</div>
+
+<!-- 메인 앱 — 3단 수직 스택 -->
+<div id="app">
+
+  <!-- ① 헤더 -->
+  <div id="header">
+    <!-- 좌측: 타이틀 캡슐 -->
+    <div id="hud-title">CODE: Oven to Bake Dreams</div>
+
+    <!-- 중앙: 스탯 게이지 트리오 -->
+    <div id="hud-stats">
+      <div class="stat-item">
+        <div class="stat-label">HUMAN $H</div>
+        <div class="stat-bar-track">
+          <div class="stat-bar bar-h" id="bar-h" style="width:50%"></div>
+        </div>
+        <div class="stat-value" id="val-h">50</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">SYNC $S</div>
+        <div class="stat-bar-track">
+          <div class="stat-bar bar-s" id="bar-s" style="width:50%"></div>
+        </div>
+        <div class="stat-value" id="val-s">50</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">TRACE $T</div>
+        <div class="stat-bar-track">
+          <div class="stat-bar bar-t" id="bar-t" style="width:0%"></div>
+        </div>
+        <div class="stat-value" id="val-t">0</div>
+      </div>
+    </div>
+
+    <!-- 우측: REALITY_SYNC -->
+    <div id="reality-sync">REALITY_SYNC: <span id="sync-value">FALSE</span></div>
+  </div>
+
+  <!-- ② 스테이지 (씬 배경 + 대화) -->
+  <div id="stage">
+    <div id="scene-bg"></div>
+    <div id="stage-noise"></div>
+
+    <!-- 카운트다운 타이머 (우측 하단) -->
+    <div id="stage-timer">600s</div>
+
+    <!-- 대화 영역 -->
+    <div id="dialogue-area">
+      <div id="dialogue-log"></div>
+    </div>
+  </div>
+
+  <!-- ③ 하단 정보 허브 (3열 그리드) -->
+  <div id="footer">
+
+    <div id="footer-top-row">
+
+      <!-- 1열: Location Info -->
+      <div class="footer-col" id="col-location">
+        <div class="phase-tag" id="phase-tag">PHASE 1 - 발산 및 빌드업</div>
+        <div id="scene-name-big">SYSTEM BOOT</div>
+        <div class="sector-tag" id="sector-tag">SECTOR: SYSTEM_CORE</div>
+        <div id="id-tag-box">ID: <span id="loc-scene-id">S0</span> // STATUS: INIT</div>
+      </div>
+
+      <!-- 2열: Dialogue Panel -->
+      <div class="footer-col" id="col-dialogue">
+        <div class="char-status">
+          ID: <span id="char-id">아이(GUEST)</span> &nbsp;|&nbsp;
+          STATUS: <span id="char-status">MEMORY_LOSS</span> &nbsp;|&nbsp;
+          SYNC: <span id="char-sync">12%</span>
+        </div>
+        <div id="footer-dialogue-content">
+          <div class="footer-narr">시스템 초기화 중... 연결 대기.</div>
+          <div class="footer-dialogue-text" id="footer-last-line">—</div>
+        </div>
+      </div>
+
+    </div><!-- /footer-top-row -->
+
+    <!-- 하단행: BACK/NEXT + 선택지 전체 너비 -->
+    <div id="footer-bottom-row">
+      <div id="col-interaction">
+        <div id="nav-btns">
+          <button class="nav-btn" onclick="scrollDialogueUp()">◀ BACK</button>
+          <button class="nav-btn" onclick="forceNext()">NEXT ▶</button>
+        </div>
+        <div id="choices-container"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 엔딩 화면 -->
+<div id="ending-screen">
+  <canvas id="ending-particle-canvas"></canvas>
+  <div id="ending-content">
+    <div id="ending-title">ENDING</div>
+    <div id="ending-subtitle">// RESULT COMPILED //</div>
+    <div id="ending-divider"></div>
+    <div id="ending-result"></div>
+    <div id="ending-stats-summary">
+      <span class="ending-stat-chip" id="es-h">$H —</span>
+      <span class="ending-stat-chip" id="es-s">$S —</span>
+      <span class="ending-stat-chip" id="es-t">$T —</span>
+    </div>
+    <div id="ending-text"></div>
+    <button id="ending-btn" onclick="endingAction()">[ 다음 단계 ]</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   파티클 렌더링
+═══════════════════════════════════════════ */
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+const GLYPH_SET = '아귀시스템루나베이커오븐EXIT01アイウエオ∑∀∃ΩΨΦ#@!%&*<>{}[]ABCDNULLvoid'.split('');
+const PARTICLES = [];
+
+function initCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+function spawnParticle(full) {
+  return {
+    x: Math.random() * canvas.width,
+    y: full ? Math.random() * canvas.height : -20,
+    speed: 0.5 + Math.random() * 2.2,
+    opacity: 0.08 + Math.random() * 0.35,
+    size: 9 + Math.random() * 5,
+    char: GLYPH_SET[Math.floor(Math.random() * GLYPH_SET.length)],
+    color: Math.random() > 0.85 ? '#FF3131' : '#00FFFF',
+    interval: Math.floor(4 + Math.random() * 12),
+    tick: 0,
+  };
+}
+
+for (let i = 0; i < 60; i++) PARTICLES.push(spawnParticle(true));
+
+function animateParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const p of PARTICLES) {
+    p.y += p.speed;
+    p.tick++;
+    if (p.tick % p.interval === 0)
+      p.char = GLYPH_SET[Math.floor(Math.random() * GLYPH_SET.length)];
+    if (p.y > canvas.height + 20)
+      Object.assign(p, spawnParticle(false));
+    ctx.font = `${p.size}px 'Share Tech Mono', monospace`;
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.opacity;
+    ctx.fillText(p.char, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(animateParticles);
+}
+window.addEventListener('resize', initCanvas);
+initCanvas();
+animateParticles();
+
+/* ═══════════════════════════════════════════
+   게임 상태
+═══════════════════════════════════════════ */
+const STAT_MAX = 100;
+let state = {
+  H: 50, S: 50, M: 0, T: 0,
+  s1Choice: null, s2Choice: null,
+  s3Choice: null, s4Choice: null, s5Choice: null,
+  endingTarget: null,
+};
+
+let timerSeconds = 600;
+let timerInterval = null;
+let currentScene = null;
+
+/* ═══════════════════════════════════════════
+   타이머
+═══════════════════════════════════════════ */
+function startTimer() {
+  stopTimer();
+  timerInterval = setInterval(() => {
+    timerSeconds = Math.max(0, timerSeconds - 1);
+    updateTimerDisplay();
+  }, 1000);
+}
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+function updateTimerDisplay() {
+  const el = document.getElementById('stage-timer');
+  el.textContent = timerSeconds + 's';
+  el.classList.toggle('critical', timerSeconds <= 60);
+}
+
+/* ═══════════════════════════════════════════
+   HUD 업데이트
+═══════════════════════════════════════════ */
+function updateHUD(changes) {
+  const map = { H: 'h', S: 's', T: 't' };
+  for (const [key, delta] of Object.entries(changes)) {
+    if (!(key in map)) continue;
+    const k = map[key];
+    const bar = document.getElementById(`bar-${k}`);
+    const val = document.getElementById(`val-${k}`);
+    val.textContent = state[key];
+    bar.style.width = Math.min(100, Math.max(0, state[key])) + '%';
+    bar.classList.remove('flash', 'pulse');
+    void bar.offsetWidth;
+    bar.classList.add('flash', 'pulse');
+    setTimeout(() => bar.classList.remove('flash', 'pulse'), 600);
+    showStatPopup(key, delta);
+  }
+  // M 스탯은 H로 반영
+  if ('M' in changes) showStatPopup('M', changes.M);
+}
+
+function showStatPopup(statKey, delta) {
+  if (!delta || delta === 0) return;
+  const colorMap = { H: '#FFBF00', S: '#00FFFF', M: '#9b80e8', T: '#FF3131' };
+  const popup = document.createElement('div');
+  popup.className = 'stat-popup';
+  popup.textContent = (delta > 0 ? '+' : '') + delta + ' ' + statKey;
+  popup.style.color = colorMap[statKey] || '#fff';
+  const hudStats = document.getElementById('hud-stats');
+  const rect = hudStats.getBoundingClientRect();
+  popup.style.left = (rect.left + Math.random() * rect.width) + 'px';
+  popup.style.top = (rect.bottom + 5) + 'px';
+  document.body.appendChild(popup);
+  setTimeout(() => popup.remove(), 1600);
+}
+
+function changeStats(changes) {
+  const deltas = {};
+  for (const [key, delta] of Object.entries(changes)) {
+    if (!(key in state)) continue;
+    const prev = state[key];
+    state[key] = Math.min(STAT_MAX, Math.max(0, state[key] + delta));
+    deltas[key] = state[key] - prev;
+  }
+  updateHUD(deltas);
+  updateFooterStatus();
+}
+
+/* ═══════════════════════════════════════════
+   푸터 상태 업데이트
+═══════════════════════════════════════════ */
+function updateFooterStatus() {
+  document.getElementById('char-sync').textContent =
+    Math.round((state.H + state.S) / 2) + '%';
+}
+
+/* ═══════════════════════════════════════════
+   대화 시스템
+═══════════════════════════════════════════ */
+const TYPING_SPEED = 20;
+let typingQueue = [];
+let isTyping = false;
+
+function queueDialogue(speaker, speakerClass, text, callback = null) {
+  typingQueue.push({ speaker, speakerClass, text, callback });
+  if (!isTyping) processQueue();
+}
+
+function processQueue() {
+  if (typingQueue.length === 0) { isTyping = false; return; }
+  isTyping = true;
+  const { speaker, speakerClass, text, callback } = typingQueue.shift();
+  typeDialogue(speaker, speakerClass, text, () => {
+    if (callback) callback();
+    setTimeout(processQueue, 160);
+  });
+}
+
+function typeDialogue(speaker, speakerClass, text, callback) {
+  const log = document.getElementById('dialogue-log');
+  const line = document.createElement('div');
+  line.className = 'dialogue-line';
+
+  const spEl = document.createElement('div');
+  spEl.className = `dialogue-speaker ${speakerClass}`;
+  spEl.textContent = speaker ? `[ ${speaker} ]` : '';
+
+  const textEl = document.createElement('div');
+  textEl.className = 'dialogue-text typing-cursor';
+
+  line.appendChild(spEl);
+  line.appendChild(textEl);
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+
+  // 푸터 2열 업데이트
+  if (speaker) {
+    document.getElementById('char-id').textContent = speaker;
+    document.getElementById('footer-last-line').textContent = '';
+  }
+
+  let i = 0;
+  function type() {
+    if (i < text.length) {
+      textEl.textContent += text[i++];
+      document.getElementById('footer-last-line').textContent =
+        text.substring(0, i).slice(-80);
+      log.scrollTop = log.scrollHeight;
+      setTimeout(type, TYPING_SPEED);
+    } else {
+      textEl.classList.remove('typing-cursor');
+      if (callback) callback();
+    }
+  }
+  type();
+}
+
+function clearDialogue() {
+  document.getElementById('dialogue-log').innerHTML = '';
+  typingQueue = [];
+  isTyping = false;
+}
+
+/* ═══════════════════════════════════════════
+   씬 관리
+═══════════════════════════════════════════ */
+function setSceneBg(className) {
+  const bg = document.getElementById('scene-bg');
+  bg.className = '';
+  if (className) bg.classList.add(className);
+}
+
+const SCENE_META = {
+  S1: { phase: 'PHASE 1 - 발산 및 빌드업', sector: 'SECTOR: SYSTEM_AWAKENING' },
+  S2: { phase: 'PHASE 1 - 발산 및 빌드업', sector: 'SECTOR: SERVER_CORE' },
+  S3: { phase: 'PHASE 2 - 상승 및 갈등',   sector: 'SECTOR: NEON_BAKERY' },
+  S4: { phase: 'PHASE 2 - 상승 및 갈등',   sector: 'SECTOR: SECURITY_GATE' },
+  S5: { phase: 'PHASE 3 - 위기 및 절정',   sector: 'SECTOR: MIRROR_ZONE' },
+  S6: { phase: 'PHASE 3 - 위기 및 절정',   sector: 'SECTOR: ARCHITECT_CORE' },
+  S7: { phase: 'PHASE 4 - 결말 및 연산',   sector: 'SECTOR: COMPILE_GATE' },
+};
+
+function setSceneTag(id, name) {
+  document.getElementById('loc-scene-id').textContent = id;
+  document.getElementById('scene-name-big').textContent = name.split('//')[0].trim();
+  currentScene = id;
+  const meta = SCENE_META[id];
+  if (meta) {
+    document.getElementById('phase-tag').textContent = meta.phase;
+    document.getElementById('sector-tag').textContent = meta.sector;
+  }
+  document.getElementById('char-status').textContent =
+    id === 'S5' || id === 'S6' ? 'CRITICAL' : 'MEMORY_LOSS';
+}
+
+/* ═══════════════════════════════════════════
+   씬 전환 연출
+═══════════════════════════════════════════ */
+function triggerSceneTransition(callback, isDanger = false) {
+  const flash = document.getElementById('scene-flash');
+  flash.style.background = isDanger ? 'var(--crimson)' : 'var(--cyan)';
+  flash.classList.remove('fire');
+  void flash.offsetWidth;
+  flash.classList.add('fire');
+
+  // 화면 셰이크
+  document.body.classList.remove('shake');
+  void document.body.offsetWidth;
+  document.body.classList.add('shake');
+  document.body.addEventListener('animationend', () => document.body.classList.remove('shake'), { once: true });
+
+  triggerGlitch(isDanger ? 600 : 350);
+  setTimeout(callback, isDanger ? 480 : 360);
+}
+
+/* ═══════════════════════════════════════════
+   선택지 렌더링
+═══════════════════════════════════════════ */
+function renderChoices(choices) {
+  const container = document.getElementById('choices-container');
+  container.innerHTML = '';
+  for (const choice of choices) {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn' + (choice.danger ? ' danger' : '');
+    btn.setAttribute('data-key', choice.key || '▶');
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'choice-text';
+    textSpan.textContent = choice.label;
+    btn.appendChild(textSpan);
+
+    if (choice.delta) {
+      const deltaSpan = document.createElement('span');
+      deltaSpan.className = 'choice-delta';
+      const parts = [];
+      for (const [k, v] of Object.entries(choice.delta)) {
+        parts.push((typeof v === 'number' && v > 0 ? '+' : '') + v + ' $' + k);
+      }
+      deltaSpan.textContent = parts.join('  ');
+      btn.appendChild(deltaSpan);
+    }
+
+    if (currentScene === 'S5' && state.H < state.S)
+      btn.classList.add('glitched-choice');
+
+    btn.addEventListener('click', () => {
+      // 이미 선택 중이면 무시
+      if (container.dataset.locked) return;
+      container.dataset.locked = '1';
+
+      // 선택된 버튼 강조, 나머지 페이드
+      btn.classList.add('selected');
+      [...container.querySelectorAll('.choice-btn')].forEach(b => {
+        if (b !== btn) { b.style.opacity = '0.2'; b.style.pointerEvents = 'none'; }
+      });
+
+      // 씬 전환 + 액션 실행
+      triggerSceneTransition(() => {
+        delete container.dataset.locked;
+        choice.action();
+      }, choice.danger);
+    });
+    container.appendChild(btn);
+  }
+}
+
+function renderActionBtn(label, action) {
+  const container = document.getElementById('choices-container');
+  container.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'action-btn';
+  btn.textContent = label;
+  btn.addEventListener('click', () => {
+    btn.style.pointerEvents = 'none';
+    triggerSceneTransition(() => action(), false);
+  });
+  container.appendChild(btn);
+}
+
+/* ═══════════════════════════════════════════
+   글리치 효과
+═══════════════════════════════════════════ */
+function triggerGlitch(duration = 300) {
+  const o = document.getElementById('glitch-overlay');
+  o.classList.add('active');
+  setTimeout(() => o.classList.remove('active'), duration);
+}
+
+/* ═══════════════════════════════════════════
+   내비게이션 보조
+═══════════════════════════════════════════ */
+function scrollDialogueUp() {
+  const log = document.getElementById('dialogue-log');
+  log.scrollTop = Math.max(0, log.scrollTop - 80);
+}
+function forceNext() {
+  // 큐에 항목이 있으면 빠른 완료, 없으면 무시
+  if (typingQueue.length === 0 && !isTyping) return;
+  typingQueue = [];
+}
+
+/* ═══════════════════════════════════════════
+   REALITY_SYNC TRUE 전환
+═══════════════════════════════════════════ */
+function setRealitySync(isTrue) {
+  const el = document.getElementById('reality-sync');
+  const val = document.getElementById('sync-value');
+  val.textContent = isTrue ? 'TRUE' : 'FALSE';
+  el.classList.toggle('true', isTrue);
+}
+
+/* ═══════════════════════════════════════════
+   씬 정의
+═══════════════════════════════════════════ */
+function startGame() {
+  document.getElementById('boot-screen').style.display = 'none';
+  startTimer();
+  goS1();
+}
+
+function goS1() {
+  setSceneTag('S1', '언로깅 // UNLOGGING');
+  setSceneBg('bg-s1');
+  clearDialogue();
+
+  queueDialogue('SYSTEM A.I.', 'speaker-system', '사용자 \'베이커\' 확인. 소거까지 600초.');
+  queueDialogue('베이커', 'speaker-player', '내 로그를 지우겠다고? 어디 해보시지. 10분이면 이 서버를 뒤집기 충분해.');
+  queueDialogue('루나', 'speaker-luna', '유령이군요... 제 회로를 고쳐주면 지도를 드리죠.', () => {
+    renderChoices([
+      { key: 'A', label: '루나의 회로를 수리한다', delta: { H: +15, S: -5 },
+        action: () => { state.s1Choice = 'A'; changeStats({ H: 15, S: -5 }); goS2(); } },
+      { key: 'B', label: '루나에게서 부품을 강제 추출한다', danger: true, delta: { S: +20, H: -10 },
+        action: () => { state.s1Choice = 'B'; changeStats({ S: 20, H: -10 }); goS2(); } }
+    ]);
+  });
+}
+
+function goS2() {
+  setSceneTag('S2', '서버균열 // SERVER_CRACK');
+  setSceneBg('bg-s2');
+  clearDialogue();
+
+  if (state.S >= 20)
+    queueDialogue('', 'speaker-narr', '[시스템 경고: E..X..I..T 홀로그램이 E..A..T로 해독됨]');
+  if (state.s1Choice === 'A')
+    queueDialogue('루나', 'speaker-luna', '저 빛은 가짜예요! 함정입니다!');
+
+  queueDialogue('메모리 아귀', 'speaker-agugi',
+    '길을 잃었나, 플레이어? 저 출구(EXIT)가 보이지? 구멍 난 독을 막을 빵을 굽는다면... 길을 비켜주지. 네 인간성 데이터를 조금만 \'미끼\'로 빌려준다면 말이야.');
+  queueDialogue('베이커', 'speaker-player',
+    '가짜 출구 띄워놓고 낚시질이라니, 구역질 나네. 그 오븐에 처넣어야 할 건 내 데이터가 아니라 바로 네 덩치야.', () => {
+    renderChoices([
+      { key: 'A', label: '아귀와 거래한다 — 인간성 데이터를 미끼로', delta: { M: +20, T: +15 },
+        action: () => { state.s2Choice = 'A'; changeStats({ M: 20, T: 15 }); goS3(); } },
+      { key: 'B', label: '미끼를 강제 탈취한다', danger: true, delta: { S: +15, H: -10 },
+        action: () => { state.s2Choice = 'B'; changeStats({ S: 15, H: -10 }); goS3(); } }
+    ]);
+  });
+}
+
+function goS3() {
+  setSceneTag('S3', '첫 노이즈 // FIRST_NOISE');
+  setSceneBg('bg-s3');
+  clearDialogue();
+
+  if (state.M >= 10)
+    queueDialogue('', 'speaker-narr', '[감각 데이터 복원: 갓 구운 빵의 냄새가 회로를 타고 흘러들어온다]');
+
+  queueDialogue('손님 (아이)', 'speaker-child',
+    '엄마의 온기가 기억나지 않아요. 그 따뜻함을 연산해서 빵에 담아줄 수 있나요?');
+  queueDialogue('베이커', 'speaker-player',
+    '온기를 연산하라고? (빵틀을 꽉 쥐며) 꼬마야, 시도는 해보마. 내 로그를 깎아서라도.', () => {
+    renderChoices([
+      { key: 'A', label: '추억을 구워낸다 — 내 로그를 소비해서', delta: { M: +25, H: -15 },
+        action: () => { state.s3Choice = 'A'; changeStats({ M: 25, H: -15 }); goS4(); } },
+      { key: 'B', label: '행복 패킷을 시스템에 판매한다', danger: true, delta: { T: +20, S: +10 },
+        action: () => { state.s3Choice = 'B'; changeStats({ T: 20, S: 10 }); goS4(); } }
+    ]);
+  });
+}
+
+function goS4() {
+  setSceneTag('S4', '보안 관문 // SECURITY_GATE');
+  setSceneBg('bg-s4');
+  clearDialogue();
+
+  if (state.T < 30)
+    queueDialogue('', 'speaker-narr', '[경고: 아귀가 흘린 정보로 보안망이 강화되었다]');
+  if (state.s2Choice === 'A')
+    queueDialogue('', 'speaker-narr', '[아귀의 가짜 신호가 레이저 격자를 일시 교란시킨다]');
+
+  queueDialogue('크로우', 'speaker-crow',
+    '비인가 데이터 감지. 너의 \'빵\'은 시스템의 정적을 깨뜨리는 바이러스다. 삭제를 집행한다.');
+  queueDialogue('베이커', 'speaker-player',
+    '내 노이즈가 너무 커서 서버가 터질까 봐 겁나나 보네? 어디 한번 잡아보시지, 깡통 새!', () => {
+    renderChoices([
+      { key: 'A', label: '손님을 보호하고 은닉시킨다', delta: { T: -20, H: +20 },
+        action: () => { state.s4Choice = 'A'; changeStats({ T: -20, H: 20 }); goS5(); } },
+      { key: 'B', label: '관리자 데이터로 크로우를 매수한다', danger: true, delta: { S: +15, T: +15 },
+        action: () => { state.s4Choice = 'B'; changeStats({ S: 15, T: 15 }); goS5(); } }
+    ]);
+  });
+}
+
+function goS5() {
+  setSceneTag('S5', '미러 조우 // MIRROR_ENCOUNTER');
+  setSceneBg('bg-s5');
+  clearDialogue();
+
+  if (state.H < state.S)
+    queueDialogue('', 'speaker-narr', '[경고: 인간성 지수가 기술 지수 미만 — 자아 경계가 흐려지고 있다]');
+
+  queueDialogue('미러', 'speaker-mirror', '넌 부품일 뿐이야. 왜 인간인 척 연기하지? 그 빵에 담긴 가짜 인간성이 역겨워.');
+  queueDialogue('베이커', 'speaker-player',
+    '내가 가짜라면, 지금 터질 듯이 뛰는 이 감각도 연산 오류라는 거야? 난 내 로그를 지켜내겠어.', () => {
+    renderChoices([
+      { key: 'A', label: '고통을 수용한다 — 자아를 통합', delta: { H: +30, S: -10 },
+        action: () => { state.s5Choice = 'A'; changeStats({ H: 30, S: -10 }); goS6(); } },
+      { key: 'B', label: '기억 데이터를 삭제한다 — 자아를 지움', danger: true, delta: { S: +25, H: -20 },
+        action: () => { state.s5Choice = 'B'; changeStats({ S: 25, H: -20 }); goS6(); } }
+    ]);
+  });
+}
+
+function goS6() {
+  setSceneTag('S6', '아키텍트 // ARCHITECT');
+  setSceneBg('bg-s6');
+  clearDialogue();
+  triggerGlitch(800);
+
+  if (state.T >= 60)
+    queueDialogue('', 'speaker-narr', '[시스템 과부하: 아키텍트 응답이 지연되고 있다...]');
+
+  queueDialogue('아키텍트', 'speaker-arch', '로그 없는 자여. 시스템의 관리자가 되겠나, 불확실한 현실의 유령이 되겠나?');
+  queueDialogue('베이커', 'speaker-player',
+    '당신의 완벽한 시스템은 숨이 막히거든. 차라리 현실에서 먼지가 될지언정, 내 의지로 깨어나겠어.', () => {
+    renderChoices([
+      { key: 'A', label: '권한을 거부한다 — 현실로 탈출', delta: { H: +40, S: -30 },
+        action: () => { changeStats({ H: 40, S: -30 }); goS7(); } },
+      { key: 'B', label: '동화를 수용한다 — 시스템의 일부가 됨', danger: true, delta: { S: '+MAX', H: '-ALL' },
+        action: () => { state.H = 0; state.S = 100; updateHUD({ H: -state.H, S: 50 }); showEnding('E3'); } }
+    ]);
+  });
+}
+
+function goS7() {
+  setSceneTag('S7', '컴파일 연산 // COMPILE');
+  setSceneBg('bg-s7');
+  clearDialogue();
+  document.getElementById('choices-container').innerHTML = '';
+  setRealitySync(true);
+
+  queueDialogue('나레이션', 'speaker-narr', '연산은 끝났다. 오븐 속에서 구워진 건 빵이 아니라, 나의 \'자아\'였다.');
+  queueDialogue('베이커', 'speaker-player',
+    '게이트 너머의 공기는... 과연 내가 기억하는 그 냄새일까?', () => {
+    renderActionBtn('[ 시스템 연산 실행 ]', runFinalCalc);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   최종 연산
+═══════════════════════════════════════════ */
+function runFinalCalc() {
+  const result = Math.floor(state.H * 1.0 + state.M * 1.5 + state.S * 0.5 - state.T * 0.5);
+  stopTimer();
+  if (result >= 150) showEnding('E1', result);
+  else if (result >= 80) showEnding('E2', result);
+  else showEnding('E3', result);
+}
+
+/* ═══════════════════════════════════════════
+   엔딩
+═══════════════════════════════════════════ */
+const ENDING_DATA = {
+  E1: {
+    title: 'TRUE END',
+    subtitle: '인류 부활 // HUMANITY RESTORED',
+    color: '#FFBF00',
+    text: '모든 데이터가 빛으로 치환되며 시스템이 해방됩니다.\n인류가 현실로 귀환하고, 당신의 로그는 전설로 기록됩니다.\n\n현실의 차가운 금속 냄새. 당신은 깨어납니다.',
+    btnLabel: '[ REPLAY — 시스템 재시동 ]', target: 'S0',
+  },
+  E2: {
+    title: 'GLITCHED END',
+    subtitle: '서버 잔류 // LOOP DETECTED',
+    color: '#9b80e8',
+    text: '탈출에 실패하여 가상과 현실의 경계에 갇힙니다.\n"자아가 부족하다." — 아키텍트의 조롱이 노이즈처럼 반복됩니다.\n\n루프가 시작됩니다.',
+    btnLabel: '[ LOOP — 자아 재구성 ]', target: 'S5',
+  },
+  E3: {
+    title: 'BAD END',
+    subtitle: '영구 삭제 // PERMANENTLY DELETED',
+    color: '#FF3131',
+    text: '모든 데이터가 포맷됩니다.\n"당신은 그저 소모품일 뿐."\n\n모든 기억 로그가 소멸합니다. 파편만이 남습니다.',
+    btnLabel: '[ RETRY — 파편 찾기 ]', target: 'S3',
+  },
+};
+
+/* ═══════════════════════════════════════════
+   엔딩 파티클 시스템
+═══════════════════════════════════════════ */
+let endingParticleAnim = null;
+
+function startEndingParticles(color) {
+  const canvas = document.getElementById('ending-particle-canvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const particles = [];
+
+  // 초기 폭발
+  for (let i = 0; i < 80; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 8;
+    particles.push({
+      x: window.innerWidth / 2, y: window.innerHeight / 2,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 3,
+      life: 1, decay: 0.008 + Math.random() * 0.015,
+      size: 2 + Math.random() * 4,
+      char: '01∑∀Ψ#@!*'.split('')[Math.floor(Math.random() * 9)],
+      type: 'burst',
+    });
+  }
+
+  // 폭발 후 상승 파티클 (지속)
+  function spawnRising() {
+    particles.push({
+      x: Math.random() * window.innerWidth,
+      y: window.innerHeight + 10,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: -(1.5 + Math.random() * 3),
+      life: 0.7 + Math.random() * 0.3,
+      decay: 0.004 + Math.random() * 0.008,
+      size: 8 + Math.random() * 6,
+      char: '01∑∀Ψ#@!*'.split('')[Math.floor(Math.random() * 9)],
+      type: 'rising',
+    });
+  }
+
+  let risingInterval = setInterval(spawnRising, 60);
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = "12px 'Share Tech Mono', monospace";
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.type === 'burst') p.vy += 0.15; // gravity
+      p.life -= p.decay;
+
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.globalAlpha = p.life * 0.7;
+      ctx.fillStyle = color;
+      ctx.font = `${p.size}px 'Share Tech Mono', monospace`;
+      ctx.fillText(p.char, p.x, p.y);
+    }
+    ctx.globalAlpha = 1;
+    endingParticleAnim = requestAnimationFrame(draw);
+  }
+  draw();
+
+  // 10초 후 지속 파티클 정리
+  setTimeout(() => clearInterval(risingInterval), 10000);
+}
+
+function stopEndingParticles() {
+  if (endingParticleAnim) { cancelAnimationFrame(endingParticleAnim); endingParticleAnim = null; }
+  const canvas = document.getElementById('ending-particle-canvas');
+  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+}
+
+/* ═══════════════════════════════════════════
+   스코어 카운트업
+═══════════════════════════════════════════ */
+function animateScore(el, target, duration = 1200) {
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = `RESULT SCORE: ${Math.floor(ease * target)}`;
+    if (t < 1) requestAnimationFrame(step);
+    else el.textContent = `RESULT SCORE: ${target}`;
+  }
+  requestAnimationFrame(step);
+}
+
+function showEnding(endingId, result) {
+  triggerGlitch(1000);
+  const data = ENDING_DATA[endingId];
+  const screen = document.getElementById('ending-screen');
+
+  // 콘텐츠 리셋 (애니메이션 재실행을 위해)
+  const title = document.getElementById('ending-title');
+  const subtitle = document.getElementById('ending-subtitle');
+  const divider = document.getElementById('ending-divider');
+  const resultEl = document.getElementById('ending-result');
+  const statsSummary = document.getElementById('ending-stats-summary');
+  const textEl = document.getElementById('ending-text');
+  const btn = document.getElementById('ending-btn');
+
+  [title, subtitle, resultEl, statsSummary, textEl, btn].forEach(el => {
+    el.classList.remove('show');
+  });
+  divider.classList.remove('show');
+
+  title.textContent = data.title;
+  title.style.color = data.color;
+  subtitle.textContent = data.subtitle;
+  resultEl.style.color = data.color;
+  textEl.textContent = '';
+  btn.textContent = data.btnLabel;
+  btn.style.color = data.color;
+  btn.style.borderColor = data.color;
+  divider.style.color = data.color;
+
+  // 스탯 칩
+  document.getElementById('es-h').textContent = `$H ${state.H}`;
+  document.getElementById('es-h').style.color = '#FFBF00';
+  document.getElementById('es-h').style.borderColor = 'rgba(255,191,0,0.3)';
+  document.getElementById('es-s').textContent = `$S ${state.S}`;
+  document.getElementById('es-s').style.color = '#00FFFF';
+  document.getElementById('es-s').style.borderColor = 'rgba(0,255,255,0.3)';
+  document.getElementById('es-t').textContent = `$T ${state.T}`;
+  document.getElementById('es-t').style.color = '#FF3131';
+  document.getElementById('es-t').style.borderColor = 'rgba(255,49,49,0.3)';
+
+  screen.style.backgroundImage =
+    `radial-gradient(ellipse at center, ${data.color}18 0%, var(--void) 70%)`;
+
+  state.endingTarget = data.target;
+  screen.style.display = 'flex';
+
+  // 파티클 시작
+  stopEndingParticles();
+  startEndingParticles(data.color);
+
+  // 순차 애니메이션
+  setTimeout(() => title.classList.add('show'), 80);
+  setTimeout(() => subtitle.classList.add('show'), 500);
+  setTimeout(() => divider.classList.add('show'), 700);
+
+  // 스코어 카운트업
+  setTimeout(() => {
+    resultEl.classList.add('show');
+    if (result !== undefined) {
+      resultEl.textContent = 'RESULT SCORE: 0';
+      animateScore(resultEl, result, 1200);
+    } else {
+      resultEl.textContent = 'ARCHITECT ASSIMILATION';
+    }
+  }, 900);
+
+  // 스탯 요약
+  setTimeout(() => statsSummary.classList.add('show'), 1200);
+
+  // 엔딩 텍스트 타이핑
+  setTimeout(() => {
+    textEl.classList.add('show');
+    const fullText = data.text;
+    let i = 0;
+    function typeEnd() {
+      if (i < fullText.length) {
+        textEl.textContent += fullText[i++];
+        setTimeout(typeEnd, 18);
+      } else {
+        setTimeout(() => btn.classList.add('show'), 200);
+      }
+    }
+    typeEnd();
+  }, 1600);
+}
+
+function endingAction() {
+  const target = state.endingTarget;
+  const screen = document.getElementById('ending-screen');
+  stopEndingParticles();
+  screen.classList.remove('visible');
+  screen.style.display = 'none';
+  setRealitySync(false);
+
+  if (target === 'S0') { resetState(); timerSeconds = 600; updateTimerDisplay(); startTimer(); goS1(); }
+  else if (target === 'S5') { startTimer(); goS5(); }
+  else if (target === 'S3') { startTimer(); goS3(); }
+}
+
+function resetState() {
+  state.H = 50; state.S = 50; state.M = 0; state.T = 0;
+  state.s1Choice = null; state.s2Choice = null;
+  state.s3Choice = null; state.s4Choice = null; state.s5Choice = null;
+  state.endingTarget = null;
+  ['h','s','t'].forEach(k => {
+    const bar = document.getElementById(`bar-${k}`);
+    const val = document.getElementById(`val-${k}`);
+    const key = k.toUpperCase();
+    bar.style.width = state[key] + '%';
+    val.textContent = state[key];
+  });
+}
+
+/* ═══════════════════════════════════════════
+   부팅 로그
+═══════════════════════════════════════════ */
+const BOOT_LINES = [
+  '> DREAM_OVEN.EXE 로드 중...',
+  '> 시스템 A.I. 연결 확인... [OK]',
+  '> 사용자 ID: BAKER_77 — 상태: FROZEN',
+  '> 경고: 비인가 접속 감지됨',
+  '> 서버 소거 카운트다운 시작: 00:10:00',
+  '> 탈출 루트 스캔... [NULL]',
+  '> 데이터 스트림 초기화... ██████░░░░ 60%',
+  '> 데이터 스트림 초기화... ██████████ 100%',
+  '> 준비 완료. 반항 로그 활성화.',
+];
+
+let bootIdx = 0;
+const bootLogEl = document.getElementById('boot-log');
+
+function runBootLog() {
+  if (bootIdx < BOOT_LINES.length) {
+    const line = document.createElement('div');
+    line.textContent = BOOT_LINES[bootIdx++];
+    bootLogEl.appendChild(line);
+    setTimeout(runBootLog, 270 + Math.random() * 150);
+  }
+}
+runBootLog();
+</script>
+</body>
+</html>
