@@ -33,9 +33,8 @@
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  /* 2. (추천) 글씨가 선명하게 보이도록 배경 이미지를 살짝 어둡게 덮을 때 */
-  background: linear-gradient(rgba(3, 5, 10, 0.75), rgba(3, 5, 10, 0.85)), 
-              url('./images/cover.png') center/100% 100% no-repeat;
+  /* 동영상 배경이 로드되기 전 폴백 색상 (cover.mp4 가 scene-bg video로 재생됨) */
+  background: #03050A;
   color: var(--text);
   font-family: var(--story);
   cursor: crosshair;
@@ -270,9 +269,16 @@ html, body {
 /* 씬 배경 레이어 */
 #scene-bg {
   position: absolute; inset: 0;
-  transition: opacity 0.8s ease;   /* ← background → opacity 로 변경 */
+  transition: opacity 0.8s ease;
   pointer-events: none;
   z-index: 0;
+}
+/* 동영상 위에 기존 분위기 오버레이(그라디언트)를 유지하는 가상요소 */
+#scene-bg.has-video::after {
+  content: '';
+  position: absolute; inset: 0; z-index: 1;
+  pointer-events: none;
+  background: var(--scene-overlay, rgba(3,5,10,0.45));
 }
 
 /* 씬별 배경 이미지 + 분위기 오버레이 */
@@ -935,21 +941,31 @@ body.loop-mode #hud-title::before {
   z-index: 999999 !important;
 }
 
-/* 엔딩별 배경 이미지 클래스 */
+/* 동영상 활성화 시 콘텐츠가 video 위에 쌓이도록 z-index 보장 */
+#ending-screen.active-end #ending-video { z-index: 0; }
+#ending-screen.active-end #ending-particle-canvas { z-index: 1; }
+#ending-screen.active-end #ending-content { z-index: 2; position: relative; }
+
+/* 동영상 위 분위기 오버레이 (기존 gradient 역할 대체) */
+#ending-screen.active-end::before {
+  content: '';
+  position: absolute; inset: 0; z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(rgba(3,5,10,0.45), rgba(3,5,10,0.65));
+}
+
+/* 엔딩별 배경 — 동영상으로 대체됨 (PNG 폴백 유지) */
 #ending-screen.end-E1 {
   background-image: linear-gradient(rgba(3,5,10,0.45), rgba(3,5,10,0.65)), url('images/END_A.png');
-  background-size: cover;
-  background-position: center;
+  background-size: cover; background-position: center;
 }
 #ending-screen.end-E2 {
   background-image: linear-gradient(rgba(3,5,10,0.45), rgba(3,5,10,0.65)), url('images/END_B.png');
-  background-size: cover;
-  background-position: center;
+  background-size: cover; background-position: center;
 }
 #ending-screen.end-E3 {
   background-image: linear-gradient(rgba(3,5,10,0.45), rgba(3,5,10,0.65)), url('images/G_OVER.png');
-  background-size: cover;
-  background-position: center;
+  background-size: cover; background-position: center;
 }
 
 /* 내부 콘텐츠들: 처음에 숨겨져 있다가 자바스크립트에 의해 순차적으로 등장 */
@@ -1355,7 +1371,12 @@ body.shake { animation: screen-shake 0.35s ease; }
 
   <!-- ② 스테이지 (씬 배경 + 대화) -->
   <div id="stage">
-    <div id="scene-bg"></div>
+    <div id="scene-bg">
+      <!-- 씬별 배경 동영상 (src는 JS에서 교체, 이미지가 없는 씬은 기존 PNG 클래스 유지) -->
+      <video id="scene-video"
+             autoplay loop muted playsinline
+             style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0;display:none;"></video>
+    </div>
     <div id="stage-noise"></div>
 
     <!-- 카운트다운 타이머 (우측 하단) -->
@@ -1411,6 +1432,10 @@ body.shake { animation: screen-shake 0.35s ease; }
 
 <!-- 엔딩 화면 -->
 <div id="ending-screen">
+  <!-- 엔딩 배경 동영상 (showEnding()에서 src 교체) -->
+  <video id="ending-video"
+         autoplay loop muted playsinline
+         style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0;display:none;"></video>
   <canvas id="ending-particle-canvas"></canvas>
   <div id="ending-content">
     <div id="ending-title">ENDING</div>
@@ -1639,10 +1664,56 @@ function clearDialogue() {
 /* ═══════════════════════════════════════════
    씬 관리
 ═══════════════════════════════════════════ */
+/* ─────────────────────────────────────────────────
+   씬별 동영상 매핑 테이블
+   ★ 동영상을 추가하려면 여기에 경로만 입력하세요.
+   ★ 경로가 없는 씬은 기존 PNG 배경 클래스가 유지됩니다.
+───────────────────────────────────────────────── */
+const SCENE_VIDEOS = {
+  // 'CSS클래스명':  { src: '동영상경로', overlay: '그라디언트 CSS' }
+  'bg-cover': { src: 'video/cover.mp4',  overlay: 'linear-gradient(rgba(3,5,10,0.75), rgba(3,5,10,0.85))' },
+  'bg-s1':    { src: 'video/S1.mp4',     overlay: 'radial-gradient(ellipse at 30% 70%, rgba(0,80,120,0.35) 0%, rgba(3,5,10,0.6) 100%)' },
+  'bg-s2':    { src: 'video/S2.mp4',     overlay: 'radial-gradient(ellipse at 70% 40%, rgba(255,49,49,0.3) 0%, rgba(3,5,10,0.6) 100%)' },
+  'bg-s3':  { src: 'video/S3.mp4',   overlay: 'radial-gradient(ellipse at 50% 60%, rgba(255,191,0,0.25) 0%, rgba(3,5,10,0.55) 100%)' },
+  'bg-s4':  { src: 'video/S4.mp4',   overlay: 'radial-gradient(ellipse at 50% 50%, rgba(255,49,49,0.35) 0%, rgba(3,5,10,0.65) 100%)' },
+  'bg-s5':  { src: 'video/S5.mp4',   overlay: 'radial-gradient(ellipse at 50% 50%, rgba(61,43,140,0.4) 0%, rgba(3,5,10,0.65) 100%)' },
+  'bg-s6':  { src: 'video/S6.mp4',   overlay: 'radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.1) 0%, rgba(3,5,10,0.7) 100%)' },
+  'bg-s7':  { src: 'video/S7.mp4',   overlay: 'radial-gradient(ellipse at 50% 50%, rgba(0,255,255,0.15) 0%, rgba(255,191,0,0.1) 50%, rgba(3,5,10,0.5) 100%)' },
+  'bg-re-s3': { src: 'video/RE_S3.mp4', overlay: 'radial-gradient(ellipse at 50% 60%, rgba(255,191,0,0.08) 0%, rgba(3,5,10,0.85) 100%)' },
+  'bg-re-s5': { src: 'video/RE_S5.mp4', overlay: 'radial-gradient(ellipse at 50% 40%, rgba(255,49,49,0.28) 0%, rgba(61,43,140,0.2) 50%, rgba(3,5,10,0.75) 100%)' },
+};
+
 function setSceneBg(className) {
-  const bg = document.getElementById('scene-bg');
+  const bg    = document.getElementById('scene-bg');
+  const video = document.getElementById('scene-video');
+
+  // 기존 클래스 & 상태 초기화
   bg.className = '';
-  if (className) bg.classList.add(className);
+  video.style.display = 'none';
+  video.pause();
+
+  if (!className) return;
+
+  const videoData = SCENE_VIDEOS[className];
+
+  if (videoData) {
+    // ── 동영상 모드 ──
+    bg.classList.add('has-video');
+    // 씬별 오버레이 그라디언트를 CSS 커스텀 프로퍼티로 주입
+    bg.style.setProperty('--scene-overlay', videoData.overlay);
+    // 동영상 교체 및 재생
+    if (video.dataset.currentSrc !== videoData.src) {
+      video.src = videoData.src;
+      video.dataset.currentSrc = videoData.src;
+      video.load();
+    }
+    video.style.display = 'block';
+    video.play().catch(() => {}); // 자동재생 정책 예외 무시
+  } else {
+    // ── 기존 PNG 이미지 모드 (동영상 없는 씬) ──
+    bg.style.removeProperty('--scene-overlay');
+    bg.classList.add(className);
+  }
 }
 
 const SCENE_META = {
@@ -2107,9 +2178,9 @@ function runFinalCalc() {
    ▸ 온라인 URL: "https://example.com/my-image.jpg"
    ▸ 배경 없음:  bgUrl 줄을 지우거나 null로 설정
 
-   E1 (TRUE END)    → bgUrl: "images/END_A.png"   ← 이 경로를 원하는 사진으로 변경
-   E2 (GLITCHED END)→ bgUrl: "images/END_B.png"   ← 이 경로를 원하는 사진으로 변경
-   E3 (BAD END)     → bgUrl: "images/G_OVER.png"  ← 이 경로를 원하는 사진으로 변경
+   E1 (TRUE END)    → bgUrl: "video/END_A.mp4"
+   E2 (GLITCHED END)→ bgUrl: "video/END_B.mp4"
+   E3 (BAD END)     → bgUrl: "video/G_OVER.mp4"
 ═══════════════════════════════════════════════════════════════ */
 const ENDING_DATA = {
   E1: {
@@ -2119,7 +2190,7 @@ const ENDING_DATA = {
     text: '모든 데이터가 빛으로 치환되며 시스템이 해방됩니다.\n인류가 현실로 귀환하고, 당신의 로그는 전설로 기록됩니다.\n\n현실의 차가운 금속 냄새. 당신은 깨어납니다.',
     btnLabel: '[ REPLAY — 시스템 재시동 ]',
     target: 'S0',
-    bgUrl: "images/END_A.png"  // ★ E1 배경 이미지 경로 — 여기를 원하는 사진으로 변경
+    bgUrl: "video/END_A.mp4"  // ★ E1 배경 동영상 경로
   },
 
   E2: {
@@ -2129,7 +2200,7 @@ const ENDING_DATA = {
     text: '탈출에 실패하여 가상과 현실의 경계에 갇힙니다.\n자아 밀도가 부족하여 루프 시스템에 동화되었습니다.',
     btnLabel: '[ RECOVERY CORE — 코어 복구 ]',
     target: 'RE_S5',
-    bgUrl: "images/END_B.png"  // ★ E2 배경 이미지 경로 — 여기를 원하는 사진으로 변경
+    bgUrl: "video/END_B.mp4"  // ★ E2 배경 동영상 경로
   },
 
   E3: {
@@ -2139,7 +2210,7 @@ const ENDING_DATA = {
     text: '시스템 아키텍트에게 자아가 완전히 잠식되었습니다.\n당신의 기억 소자는 지워지고 빈 껍데기만 남습니다.',
     btnLabel: '[ RETRY SYSTEM — 시스템 재시도 ]',
     target: 'RE_S3',
-    bgUrl: "images/G_OVER.png" // ★ E3 배경 이미지 경로 — 여기를 원하는 사진으로 변경
+    bgUrl: "video/G_OVER.mp4" // ★ E3 배경 동영상 경로
   }
 };
 
@@ -2249,18 +2320,25 @@ function showEnding(endingId, result) {
   screen.style.backgroundPosition = '';
   screen.style.backgroundRepeat = '';
   screen.style.display = 'none';
+  // 엔딩 동영상 초기화
+  const endingVideo = document.getElementById('ending-video');
+  if (endingVideo) { endingVideo.pause(); endingVideo.style.display = 'none'; }
   void screen.offsetWidth; // 브라우저 강제 리플로우 — 잔상 제거 핵심
 
   // 2. 활성화 클래스 먼저 부여 (화면을 보이게 만듦)
   screen.classList.add('active-end');
 
-  // 3. [★ 핵심 수정] CSS에 덮어씌워지지 않도록 최상위 우선순위(!important)로 스타일 주입
-  if (data && data.bgUrl) {
-    screen.style.setProperty('background-image', `linear-gradient(rgba(3,5,10,0.5), rgba(3,5,10,0.75)), url('${data.bgUrl}')`, 'important');
-    screen.style.setProperty('background-size', 'cover', 'important');
-    screen.style.setProperty('background-position', 'center center', 'important');
-    screen.style.setProperty('background-repeat', 'no-repeat', 'important');
-    screen.style.setProperty('background-color', '#03050A', 'important');
+  // 3. 동영상 배경 재생 (bgUrl이 mp4인 경우)
+  if (data && data.bgUrl && endingVideo) {
+    if (endingVideo.dataset.currentSrc !== data.bgUrl) {
+      endingVideo.src = data.bgUrl;
+      endingVideo.dataset.currentSrc = data.bgUrl;
+      endingVideo.load();
+    }
+    endingVideo.style.display = 'block';
+    endingVideo.play().catch(() => {});
+    // 동영상 위 오버레이는 CSS .active-end::before 로 처리
+    screen.style.removeProperty('background-image');
   }
 
   // 콘텐츠 리셋 및 요소 가져오기
@@ -2350,9 +2428,10 @@ function endingAction() {
   // 게임 UI 복원
   document.getElementById('app').style.visibility = 'visible';
 
-  // body 배경 복원
-  document.body.style.backgroundImage = "linear-gradient(rgba(3,5,10,0.75), rgba(3,5,10,0.85)), url('./images/cover.png')";
+  // body 배경 복원 (cover 동영상 or PNG)
+  document.body.style.backgroundImage = '';
   document.body.style.backgroundColor = '';
+  setSceneBg('bg-cover');
 
   if (target === 'S0') {
     // E1 True End → 완전 리셋 후 S1부터
@@ -2455,13 +2534,15 @@ window.addEventListener('DOMContentLoaded', () => {
   const startBtn = document.getElementById('boot-start-btn');
   
   if (startBtn) {
-    // 1. 처음에 버튼을 투명하게 숨겨놓습니다 (로그 연출을 먼저 보여주기 위해)
     startBtn.style.display = 'none';
     startBtn.style.opacity = '0';
     startBtn.style.transition = 'opacity 0.5s ease-in-out';
   }
+
+  // 부팅 화면에 cover 동영상 배경 시작
+  setSceneBg('bg-cover');
   
-  // 2. 부팅 텍스트 로그 애니메이션 스타트!
+  // 부팅 텍스트 로그 애니메이션 스타트
   runBootLog();
 });
 
@@ -2488,7 +2569,8 @@ function handleEndingClick() {
   // 2. UI 레이아웃 가시성 및 선택지창 초기화
   document.getElementById('app').style.visibility = 'visible';
   document.getElementById('choices-container').innerHTML = '';
-  document.body.style.backgroundImage = "linear-gradient(rgba(3,5,10,0.75), rgba(3,5,10,0.85)), url('./images/cover.png')";
+  document.body.style.backgroundImage = '';
+  setSceneBg('bg-cover');
   setRealitySync(false);
 
   // 3. 현재 엔딩 데이터에 지정된 타겟 가져오기 (없으면 'S1'로 안전 분기)
