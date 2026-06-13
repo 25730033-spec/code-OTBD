@@ -1600,6 +1600,7 @@ function updateFooterStatus() {
 const TYPING_SPEED = 20;
 let typingQueue = [];
 let isTyping = false;
+let skipTyping = false; // NEXT 버튼으로 현재 타이핑 즉시 완성 플래그
 
 function queueDialogue(speaker, speakerClass, text, callback = null) {
   typingQueue.push({ speaker, speakerClass, text, callback });
@@ -1641,6 +1642,16 @@ function typeDialogue(speaker, speakerClass, text, callback) {
 
   let i = 0;
   function type() {
+    if (skipTyping) {
+      // NEXT 눌렸을 때 — 남은 텍스트 한 번에 완성
+      textEl.textContent = text;
+      document.getElementById('footer-last-line').textContent = text.slice(-80);
+      log.scrollTop = log.scrollHeight;
+      textEl.classList.remove('typing-cursor');
+      skipTyping = false;
+      if (callback) callback();
+      return;
+    }
     if (i < text.length) {
       textEl.textContent += text[i++];
       document.getElementById('footer-last-line').textContent =
@@ -1659,6 +1670,7 @@ function clearDialogue() {
   document.getElementById('dialogue-log').innerHTML = '';
   typingQueue = [];
   isTyping = false;
+  skipTyping = false;
 }
 
 /* ═══════════════════════════════════════════
@@ -1793,7 +1805,6 @@ function renderChoices(choices) {
       btn.classList.add('glitched-choice');
 
     btn.addEventListener('click', () => {
-      // 이미 선택 중이면 무시
       if (container.dataset.locked) return;
       container.dataset.locked = '1';
 
@@ -1840,12 +1851,17 @@ function triggerGlitch(duration = 300) {
 ═══════════════════════════════════════════ */
 function scrollDialogueUp() {
   const log = document.getElementById('dialogue-log');
-  log.scrollTop = Math.max(0, log.scrollTop - 80);
+  log.scrollTop = Math.max(0, log.scrollTop - 120);
 }
 function forceNext() {
-  // 큐에 항목이 있으면 빠른 완료, 없으면 무시
-  if (typingQueue.length === 0 && !isTyping) return;
-  typingQueue = [];
+  if (isTyping) {
+    // 타이핑 중이면 현재 줄을 즉시 완성
+    skipTyping = true;
+  } else {
+    // 타이핑이 끝난 상태면 로그 맨 아래로 스크롤
+    const log = document.getElementById('dialogue-log');
+    log.scrollTop = log.scrollHeight;
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -1880,6 +1896,9 @@ const bgmTracks = {
   S7:    'sound/S7.mp3',
   RE_S3: 'sound/RE_S3.mp3',
   RE_S5: 'sound/RE_S5.mp3',
+  E1:    'sound/END_A.mp3',  // True End 음악
+  E2:    'sound/END_B.mp3',  // Glitched End 음악
+  E3:    'sound/G_OVER.mp3', // Bad End 음악
 };
 
 let currentBgm = null;
@@ -1903,7 +1922,7 @@ function playBGM(key) {
   }
 
   const audio = new Audio(src);
-  audio.loop = true;
+  audio.loop = false; // 한 번만 재생
   audio.volume = 0;
   audio.play().catch(() => {});
   // 페이드인
@@ -2384,6 +2403,9 @@ function showEnding(endingId, result) {
   if (data && data.target) {
     state.endingTarget = data.target;
   }
+
+  // 엔딩 BGM 재생 (기존 씬 BGM 페이드아웃 후 전환)
+  playBGM(endingId);
   
   const screen = document.getElementById('ending-screen');
   // 1. 이전 엔딩 잔상 및 스타일, 클래스 완전 초기화
