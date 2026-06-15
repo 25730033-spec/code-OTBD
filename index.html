@@ -1526,6 +1526,11 @@ function startTimer() {
   timerInterval = setInterval(() => {
     timerSeconds = Math.max(0, timerSeconds - 1);
     updateTimerDisplay();
+    // 타이머 0초 도달 → 소거 연출 후 E3 강제 진입
+    if (timerSeconds === 0) {
+      stopTimer();
+      triggerErasure();
+    }
   }, 1000);
 }
 function stopTimer() {
@@ -1535,6 +1540,61 @@ function updateTimerDisplay() {
   const el = document.getElementById('stage-timer');
   el.textContent = timerSeconds + 's';
   el.classList.toggle('critical', timerSeconds <= 60);
+}
+
+/* ═══════════════════════════════════════════
+   소거 연출 — 타이머 0초 도달 시 E3 강제 진입
+═══════════════════════════════════════════ */
+function triggerErasure() {
+  // 선택지 및 입력 즉시 차단
+  const choicesEl = document.getElementById('choices-container');
+  if (choicesEl) { choicesEl.innerHTML = ''; choicesEl.style.pointerEvents = 'none'; }
+
+  // 글리치 연발
+  triggerGlitch(200);
+  setTimeout(() => triggerGlitch(200), 300);
+  setTimeout(() => triggerGlitch(200), 600);
+
+  // 전체 화면 소거 경고 오버레이 생성
+  const overlay = document.createElement('div');
+  overlay.id = 'erasure-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 9500;
+    background: rgba(255,49,49,0.08);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-family: var(--mono); text-align: center;
+    animation: erasure-flicker 0.4s step-end infinite;
+  `;
+  overlay.innerHTML = `
+    <div style="font-size:clamp(1.2rem,3vw,2rem);color:#FF3131;letter-spacing:0.3em;margin-bottom:1rem">
+      ⚠ ERASURE COMPLETE ⚠
+    </div>
+    <div style="font-size:clamp(0.65rem,1.5vw,0.85rem);color:#ff6060;letter-spacing:0.2em;line-height:2">
+      사용자 데이터 소거 완료<br>
+      ID: [BAKER] — STATUS: DELETED<br>
+      <span style="color:#ff3131">600초가 경과했습니다</span>
+    </div>
+  `;
+  // 애니메이션 키프레임 주입
+  if (!document.getElementById('erasure-style')) {
+    const style = document.createElement('style');
+    style.id = 'erasure-style';
+    style.textContent = `
+      @keyframes erasure-flicker {
+        0%,100%{ opacity:1; } 25%{ opacity:0.4; } 50%{ opacity:0.9; } 75%{ opacity:0.2; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  document.body.appendChild(overlay);
+
+  // 2.5초 연출 후 E3 진입
+  setTimeout(() => {
+    overlay.remove();
+    state.H = 0; state.S = 100;
+    showEnding('E3');
+  }, 2500);
 }
 
 /* ═══════════════════════════════════════════
