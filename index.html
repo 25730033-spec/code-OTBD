@@ -231,6 +231,61 @@ html, body {
 }
 
 /* ── REALITY_SYNC 박스 (우측) ── */
+/* ── 헤더 우측 묶음 ── */
+#header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── 볼륨 컨트롤 ── */
+#vol-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#mute-btn {
+  font-size: 13px;
+  background: transparent;
+  border: 1px solid rgba(0,255,255,0.25);
+  color: var(--cyan);
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  padding: 0;
+}
+#mute-btn:hover { background: rgba(0,255,255,0.1); border-color: var(--cyan); }
+#mute-btn.muted { color: var(--crimson); border-color: rgba(255,49,49,0.4); }
+#vol-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 64px; height: 3px;
+  background: rgba(0,255,255,0.2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+#vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 5px var(--cyan);
+  cursor: pointer;
+}
+#vol-slider::-moz-range-thumb {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--cyan);
+  border: none;
+  cursor: pointer;
+}
+#vol-slider.muted::-webkit-slider-thumb { background: var(--crimson); box-shadow: 0 0 5px var(--crimson); }
+
 #reality-sync {
   font-family: var(--mono);
   font-size: 9px;
@@ -389,6 +444,58 @@ body.loop-mode #hud-title::before {
 @keyframes banner-in {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── BAD END 경고 배너 (위험 선택지 호버/포커스 시 표시) ── */
+#bad-end-warning {
+  position: fixed;
+  top: 52px; /* 헤더 바로 아래 */
+  left: 0; right: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 9px 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-align: center;
+  background: rgba(40,0,0,0.85);
+  border-bottom: 1px solid var(--crimson);
+  box-shadow: 0 0 18px rgba(255,49,49,0.35), inset 0 0 20px rgba(255,49,49,0.08);
+  color: var(--crimson);
+  text-shadow: 0 0 10px rgba(255,49,49,0.7);
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+#bad-end-warning.show {
+  opacity: 1;
+  transform: translateY(0);
+  animation: bad-end-flicker 1.6s steps(1) infinite;
+}
+#bad-end-warning .bew-icon {
+  font-size: 14px;
+  animation: bad-end-pulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes bad-end-pulse {
+  0%   { opacity: 1;   transform: scale(1); }
+  100% { opacity: 0.35; transform: scale(1.2); }
+}
+@keyframes bad-end-flicker {
+  0%, 90%, 100% { opacity: 1; }
+  92% { opacity: 0.45; }
+  95% { opacity: 1; }
+  97% { opacity: 0.6; }
+}
+@media (max-width: 600px) {
+  #bad-end-warning {
+    font-size: 9px;
+    padding: 8px 12px;
+    white-space: normal;
+  }
 }
 
 /* 스테이지 글리치 노이즈 */
@@ -1321,6 +1428,9 @@ body.shake { animation: screen-shake 0.35s ease; }
 <!-- 리부트/루프 진입 배너 -->
 <div id="reboot-banner"></div>
 
+<!-- BAD END 경고 배너 (위험 선택지 호버 시 표시) -->
+<div id="bad-end-warning"><span class="bew-icon">⚠</span><span>경고 — 이 선택은 BAD END 루트에 가까워집니다</span></div>
+
 <!-- 부팅 화면 -->
 <!-- 부팅 화면 -->
 <div id="boot-screen">
@@ -1365,8 +1475,17 @@ body.shake { animation: screen-shake 0.35s ease; }
       </div>
     </div>
 
-    <!-- 우측: REALITY_SYNC -->
-    <div id="reality-sync">REALITY_SYNC: <span id="sync-value">FALSE</span></div>
+    <!-- 우측: REALITY_SYNC + 볼륨 컨트롤 -->
+    <div id="header-right">
+      <div id="reality-sync">REALITY_SYNC: <span id="sync-value">FALSE</span></div>
+      <div id="vol-wrap">
+        <span id="vol-label">VOL</span>
+        <button id="mute-btn" onclick="toggleMute()" title="음소거 (M)">🔊</button>
+        <input id="vol-slider" type="range" min="0" max="1" step="0.05" value="0.8"
+               oninput="setMasterVolume(this.value)" title="볼륨 조절 (BGM + 동영상)">
+        <span id="vol-pct"></span>
+      </div>
+    </div>
   </div>
 
   <!-- ② 스테이지 (씬 배경 + 대화) -->
@@ -1374,7 +1493,7 @@ body.shake { animation: screen-shake 0.35s ease; }
     <div id="scene-bg">
       <!-- 씬별 배경 동영상 (src는 JS에서 교체, 이미지가 없는 씬은 기존 PNG 클래스 유지) -->
       <video id="scene-video"
-             autoplay loop muted playsinline
+             autoplay loop playsinline
              style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;display:none;"></video>
     </div>
     <div id="stage-noise"></div>
@@ -1434,7 +1553,7 @@ body.shake { animation: screen-shake 0.35s ease; }
 <div id="ending-screen">
   <!-- 엔딩 배경 동영상 (showEnding()에서 src 교체) -->
   <video id="ending-video"
-         autoplay loop muted playsinline
+         autoplay loop playsinline
          style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;display:none;"></video>
   <canvas id="ending-particle-canvas"></canvas>
   <div id="ending-content">
@@ -1526,11 +1645,8 @@ function startTimer() {
   timerInterval = setInterval(() => {
     timerSeconds = Math.max(0, timerSeconds - 1);
     updateTimerDisplay();
-    // 타이머 0초 도달 → 소거 연출 후 E3 강제 진입
-    if (timerSeconds === 0) {
-      stopTimer();
-      triggerErasure();
-    }
+    // 0초 도달 → 소거 연출 후 E3 강제 진입
+    if (timerSeconds === 0) { stopTimer(); triggerErasure(); }
   }, 1000);
 }
 function stopTimer() {
@@ -1545,56 +1661,160 @@ function updateTimerDisplay() {
 /* ═══════════════════════════════════════════
    소거 연출 — 타이머 0초 도달 시 E3 강제 진입
 ═══════════════════════════════════════════ */
+let timerExpiredEnding = false; // 타이머 만료로 인한 배드 엔딩 플래그
+
 function triggerErasure() {
-  // 선택지 및 입력 즉시 차단
-  const choicesEl = document.getElementById('choices-container');
-  if (choicesEl) { choicesEl.innerHTML = ''; choicesEl.style.pointerEvents = 'none'; }
+  timerExpiredEnding = true; // 타이머 만료 플래그 설정
 
-  // 글리치 연발
+  // 선택지 즉시 차단
+  const choices = document.getElementById('choices-container');
+  if (choices) { choices.innerHTML = ''; choices.style.pointerEvents = 'none'; }
+
+  // 대화 타이핑도 즉시 정지
+  typingQueue = [];
+  isTyping = false;
+
+  // 글리치 연발 (더 강렬하게)
   triggerGlitch(200);
+  setTimeout(() => triggerGlitch(200), 150);
   setTimeout(() => triggerGlitch(200), 300);
-  setTimeout(() => triggerGlitch(200), 600);
+  setTimeout(() => triggerGlitch(200), 500);
+  setTimeout(() => triggerGlitch(200), 700);
 
-  // 전체 화면 소거 경고 오버레이 생성
-  const overlay = document.createElement('div');
-  overlay.id = 'erasure-overlay';
-  overlay.style.cssText = `
-    position: fixed; inset: 0; z-index: 9500;
-    background: rgba(255,49,49,0.08);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    font-family: var(--mono); text-align: center;
-    animation: erasure-flicker 0.4s step-end infinite;
-  `;
-  overlay.innerHTML = `
-    <div style="font-size:clamp(1.2rem,3vw,2rem);color:#FF3131;letter-spacing:0.3em;margin-bottom:1rem">
-      ⚠ ERASURE COMPLETE ⚠
-    </div>
-    <div style="font-size:clamp(0.65rem,1.5vw,0.85rem);color:#ff6060;letter-spacing:0.2em;line-height:2">
-      사용자 데이터 소거 완료<br>
-      ID: [BAKER] — STATUS: DELETED<br>
-      <span style="color:#ff3131">600초가 경과했습니다</span>
-    </div>
-  `;
-  // 애니메이션 키프레임 주입
+  // 키프레임 한 번만 주입
   if (!document.getElementById('erasure-style')) {
-    const style = document.createElement('style');
-    style.id = 'erasure-style';
-    style.textContent = `
+    const s = document.createElement('style');
+    s.id = 'erasure-style';
+    s.textContent = `
       @keyframes erasure-flicker {
-        0%,100%{ opacity:1; } 25%{ opacity:0.4; } 50%{ opacity:0.9; } 75%{ opacity:0.2; }
+        0%,100%{opacity:1} 20%{opacity:0.15} 40%{opacity:0.9} 60%{opacity:0.05} 80%{opacity:0.85}
+      }
+      @keyframes erasure-scanline {
+        0%   { transform: translateY(-100%); }
+        100% { transform: translateY(100vh); }
+      }
+      @keyframes erasure-text-glitch {
+        0%,90%,100% { transform:translate(0); clip-path:none; }
+        91% { transform:translate(-4px,2px); clip-path:inset(20% 0 60% 0); color:#00ffff; }
+        93% { transform:translate(4px,-2px); clip-path:inset(60% 0 10% 0); color:#FF3131; }
+        95% { transform:translate(-2px,0); clip-path:none; color:#FF3131; }
+      }
+      @keyframes erasure-progress {
+        0%   { width: 0%; }
+        100% { width: 100%; }
+      }
+      @keyframes erasure-fade-black {
+        0%   { background: rgba(0,0,0,0); }
+        100% { background: rgba(0,0,0,0.92); }
       }
     `;
-    document.head.appendChild(style);
+    document.head.appendChild(s);
   }
-  document.body.appendChild(overlay);
 
-  // 2.5초 연출 후 E3 진입
+  // 소거 경고 오버레이 생성
+  const ov = document.createElement('div');
+  ov.id = 'erasure-overlay';
+  ov.style.cssText = `
+    position:fixed;inset:0;z-index:9500;
+    background:rgba(255,49,49,0.06);
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    font-family:var(--mono);text-align:center;
+    animation:erasure-flicker 0.25s step-end infinite, erasure-fade-black 2.5s ease forwards;
+  `;
+
+  ov.innerHTML = `
+    <!-- 스캔라인 스윕 -->
+    <div style="
+      position:absolute;inset:0;pointer-events:none;overflow:hidden;
+    ">
+      <div style="
+        position:absolute;left:0;right:0;height:3px;
+        background:linear-gradient(90deg,transparent,rgba(255,49,49,0.8),transparent);
+        animation:erasure-scanline 0.6s linear infinite;
+        box-shadow:0 0 12px rgba(255,49,49,0.6);
+      "></div>
+    </div>
+
+    <!-- 메인 경고 텍스트 -->
+    <div style="
+      font-size:clamp(1.4rem,4vw,2.6rem);
+      color:#FF3131;
+      letter-spacing:0.25em;
+      margin-bottom:0.6rem;
+      text-shadow:0 0 30px rgba(255,49,49,1),0 0 60px rgba(255,49,49,0.5);
+      animation:erasure-text-glitch 1.2s step-end infinite;
+    ">
+      ⚠ TIME_LIMIT EXCEEDED ⚠
+    </div>
+
+    <!-- 서브 타이틀 -->
+    <div style="
+      font-size:clamp(0.75rem,1.8vw,1.1rem);
+      color:#ff3131;
+      letter-spacing:0.3em;
+      margin-bottom:2rem;
+      opacity:0.8;
+    ">COUNTDOWN TERMINATED — 00:00:00</div>
+
+    <!-- 구분선 -->
+    <div style="width:320px;height:1px;background:linear-gradient(90deg,transparent,#FF3131,transparent);margin-bottom:1.6rem;box-shadow:0 0 8px rgba(255,49,49,0.6);"></div>
+
+    <!-- 상세 정보 -->
+    <div style="
+      font-size:clamp(0.6rem,1.3vw,0.78rem);
+      color:#ff6060;
+      letter-spacing:0.15em;
+      line-height:2.4;
+    ">
+      사용자 데이터 강제 소거 실행 중...<br>
+      ID: [BAKER_77] — STATUS: <span style="color:#FF3131;text-shadow:0 0 8px #FF3131">ERASING</span><br>
+      잔여 메모리 소자: <span id="erasure-mem" style="color:#FF3131">100</span>%<br>
+      SELF_CORE 무결성: <span style="color:#FF3131">0%</span>
+    </div>
+
+    <!-- 소거 프로그레스 바 -->
+    <div style="
+      margin-top:1.8rem;
+      width:280px;height:4px;
+      background:rgba(255,49,49,0.15);
+      border:1px solid rgba(255,49,49,0.3);
+    ">
+      <div style="
+        height:100%;
+        background:linear-gradient(90deg,#FF3131,#ff6060);
+        box-shadow:0 0 10px rgba(255,49,49,0.8);
+        animation:erasure-progress 2.2s linear forwards;
+      "></div>
+    </div>
+
+    <!-- 하단 경고 코드 -->
+    <div style="
+      position:absolute;bottom:40px;left:0;right:0;
+      font-size:clamp(0.5rem,1vw,0.65rem);
+      color:rgba(255,49,49,0.4);
+      letter-spacing:0.2em;
+    ">ERR::TIMEOUT_FATAL // CORE_WIPE_IN_PROGRESS // ARCHITECT_OVERRIDE_ACTIVE</div>
+  `;
+
+  document.body.appendChild(ov);
+
+  // 메모리 카운트다운 숫자 애니메이션
+  let mem = 100;
+  const memEl = ov.querySelector('#erasure-mem');
+  const memTimer = setInterval(() => {
+    mem = Math.max(0, mem - 5);
+    if (memEl) memEl.textContent = mem;
+    if (mem <= 0) clearInterval(memTimer);
+  }, 110);
+
+  // 2.8초 후 화면 완전 암전 후 E3_TIMEOUT 진입
   setTimeout(() => {
-    overlay.remove();
+    clearInterval(memTimer);
+    ov.remove();
     state.H = 0; state.S = 100;
-    showEnding('E3');
-  }, 2500);
+    showEnding('E3_TIMEOUT');
+  }, 2800);
 }
 
 /* ═══════════════════════════════════════════
@@ -1780,11 +2000,16 @@ function setSceneBg(className) {
       video.load();
     }
     video.style.display = 'block';
-    video.play().catch(() => {}); // 자동재생 정책 예외 무시
+    video.volume = isMuted ? 0 : masterVolume; // 마스터 볼륨 연동
+    video.play().catch(() => {});
+    // 동영상에 소리가 있으면 BGM 볼륨 낮추기
+    if (currentBgm) currentBgm.volume = isMuted ? 0 : masterVolume * 0.1;
   } else {
     // ── 기존 PNG 이미지 모드 (동영상 없는 씬) ──
     bg.style.removeProperty('--scene-overlay');
     bg.classList.add(className);
+    // 동영상 없는 씬은 BGM 볼륨 복구
+    if (currentBgm) currentBgm.volume = 0.5;
   }
 }
 
@@ -1840,6 +2065,8 @@ function triggerSceneTransition(callback, isDanger = false) {
 function renderChoices(choices) {
   const container = document.getElementById('choices-container');
   container.innerHTML = '';
+  const warnElInit = document.getElementById('bad-end-warning');
+  if (warnElInit) warnElInit.classList.remove('show');
   for (const choice of choices) {
     const btn = document.createElement('button');
     btn.className = 'choice-btn' + (choice.danger ? ' danger' : '');
@@ -1864,9 +2091,25 @@ function renderChoices(choices) {
     if ((currentScene === 'S5' || currentScene === 'RE_S5') && state.H < state.S)
       btn.classList.add('glitched-choice');
 
+    // ── BAD END 경고: 위험(danger) 선택지에 마우스를 올리면 경고 배너 표시 ──
+    if (choice.danger) {
+      const warnEl = document.getElementById('bad-end-warning');
+      const showWarn = () => warnEl && warnEl.classList.add('show');
+      const hideWarn = () => warnEl && warnEl.classList.remove('show');
+      btn.addEventListener('mouseenter', showWarn);
+      btn.addEventListener('mouseleave', hideWarn);
+      btn.addEventListener('focus', showWarn);
+      btn.addEventListener('blur', hideWarn);
+      btn.addEventListener('touchstart', showWarn, { passive: true });
+    }
+
     btn.addEventListener('click', () => {
       if (container.dataset.locked) return;
       container.dataset.locked = '1';
+
+      // 위험 선택 클릭 시 경고 배너 즉시 숨김
+      const warnEl = document.getElementById('bad-end-warning');
+      if (warnEl) warnEl.classList.remove('show');
 
       // 선택된 버튼 강조, 나머지 페이드
       btn.classList.add('selected');
@@ -1963,6 +2206,51 @@ const bgmTracks = {
 
 let currentBgm = null;
 let currentBgmKey = null;
+let masterVolume = 0.8; // 전역 볼륨 (0~1)
+let isMuted = false;    // 음소거 상태
+
+/* ── 모든 동영상 요소에 볼륨 적용 헬퍼 ── */
+function applyVolumeToVideos() {
+  const effectiveVol = isMuted ? 0 : masterVolume;
+  ['scene-video', 'ending-video'].forEach(id => {
+    const v = document.getElementById(id);
+    if (v) v.volume = effectiveVol;
+  });
+}
+
+/* ── 볼륨 슬라이더 조작 ── */
+function setMasterVolume(val) {
+  masterVolume = parseFloat(val);
+  isMuted = false;
+  if (currentBgm) currentBgm.volume = masterVolume;
+  applyVolumeToVideos();
+  syncVolUI();
+}
+
+/* ── 음소거 토글 (버튼 or M키) ── */
+function toggleMute() {
+  isMuted = !isMuted;
+  if (currentBgm) currentBgm.volume = isMuted ? 0 : masterVolume;
+  applyVolumeToVideos();
+  syncVolUI();
+}
+
+/* ── 볼륨 UI 아이콘 + 슬라이더 동기화 ── */
+function syncVolUI() {
+  const btn    = document.getElementById('mute-btn');
+  const slider = document.getElementById('vol-slider');
+  if (!btn || !slider) return;
+  if (isMuted || masterVolume === 0) {
+    btn.textContent = '🔇';
+    btn.classList.add('muted');
+    slider.classList.add('muted');
+  } else {
+    btn.textContent = masterVolume < 0.5 ? '🔉' : '🔊';
+    btn.classList.remove('muted');
+    slider.classList.remove('muted');
+    slider.value = masterVolume;
+  }
+}
 
 function playBGM(key) {
   const src = bgmTracks[key];
@@ -1985,12 +2273,13 @@ function playBGM(key) {
   audio.loop = false; // 한 번만 재생
   audio.volume = 0;
   audio.play().catch(() => {});
-  // 페이드인
+  // 페이드인 — masterVolume 목표치까지 (음소거 시 0)
+  const target = isMuted ? 0 : masterVolume;
   let vol = 0;
   const fadeIn = setInterval(() => {
-    vol = Math.min(1, vol + 0.05);
+    vol = Math.min(target, vol + 0.05);
     audio.volume = vol;
-    if (vol >= 1) clearInterval(fadeIn);
+    if (vol >= target) clearInterval(fadeIn);
   }, 50);
 
   currentBgm = audio;
@@ -2363,6 +2652,17 @@ const ENDING_DATA = {
     btnLabel: '[ RETRY SYSTEM — 시스템 재시도 ]',
     target: 'RE_S3',
     bgUrl: "video/G_OVER.mp4" // ★ E3 배경 동영상 경로
+  },
+
+  // 타이머 만료 전용 배드 엔딩 (E3와 같은 분기지만 다른 텍스트)
+  E3_TIMEOUT: {
+    title: 'BAD END',
+    subtitle: '시간 초과 // TIME_EXPIRED',
+    color: '#FF3131',
+    text: '카운트다운이 0에 도달했습니다.\n탈출을 망설이는 사이, 시스템 아키텍트가 강제 소거를 집행했습니다.\n\n베이커의 기억 소자 전체가 덮어쓰기됩니다.\n이제 그 이름을 기억하는 자는 아무도 없습니다.',
+    btnLabel: '[ RETRY SYSTEM — 시스템 재시도 ]',
+    target: 'RE_S3',
+    bgUrl: "video/G_OVER.mp4"
   }
 };
 
@@ -2475,6 +2775,9 @@ function showEnding(endingId, result) {
   screen.style.backgroundPosition = '';
   screen.style.backgroundRepeat = '';
   screen.style.display = 'none';
+  // 씬 동영상 소리 완전 정지
+  const sceneVideo = document.getElementById('scene-video');
+  if (sceneVideo) { sceneVideo.pause(); sceneVideo.src = ''; sceneVideo.style.display = 'none'; }
   // 엔딩 동영상 초기화
   const endingVideo = document.getElementById('ending-video');
   if (endingVideo) { endingVideo.pause(); endingVideo.style.display = 'none'; }
@@ -2491,6 +2794,7 @@ function showEnding(endingId, result) {
       endingVideo.load();
     }
     endingVideo.style.display = 'block';
+    endingVideo.volume = isMuted ? 0 : masterVolume; // 마스터 볼륨 연동
     endingVideo.play().catch(() => {});
     // 동영상 위 오버레이는 CSS .active-end::before 로 처리
     screen.style.removeProperty('background-image');
@@ -2687,16 +2991,23 @@ function startGame() {
 // 웹페이지의 HTML 구조가 전부 다운로드 완료되면 자동 실행되는 시스템 총괄 구역
 window.addEventListener('DOMContentLoaded', () => {
   const startBtn = document.getElementById('boot-start-btn');
-  
   if (startBtn) {
     startBtn.style.display = 'none';
     startBtn.style.opacity = '0';
     startBtn.style.transition = 'opacity 0.5s ease-in-out';
   }
 
-  // 부팅 화면에 cover 동영상 배경 시작
+  // 볼륨 UI 초기 상태 동기화
+  syncVolUI();
+
+  // M키 — 음소거 토글 단축키
+  document.addEventListener('keydown', e => {
+    if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey) toggleMute();
+  });
+
+  // 부팅 화면 cover 동영상 배경 시작
   setSceneBg('bg-cover');
-  
+
   // 부팅 텍스트 로그 애니메이션 스타트
   runBootLog();
 });
@@ -2731,6 +3042,9 @@ function handleEndingClick() {
   // 3. 현재 엔딩 데이터에 지정된 타겟 가져오기 (없으면 'S1'로 안전 분기)
   const target = state.endingTarget || 'S1';
   
+  // 타이머 만료 플래그 초기화
+  timerExpiredEnding = false;
+
   // 4. 타겟별 리부트 시네마틱 정상 기동
   if (target === 'S1' || target === 'S0') {
     resetState();
@@ -2745,6 +3059,9 @@ function handleEndingClick() {
     startTimer();
     if (typeof goRE_S5 === 'function') goRE_S5();
   } else if (target === 'RE_S3') {
+    resetState();
+    timerSeconds = 600;
+    updateTimerDisplay();
     if (typeof initDisplay === 'function') initDisplay();
     startTimer();
     if (typeof goRE_S3 === 'function') goRE_S3();
