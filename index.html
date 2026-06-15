@@ -1493,7 +1493,7 @@ body.shake { animation: screen-shake 0.35s ease; }
     <div id="scene-bg">
       <!-- 씬별 배경 동영상 (src는 JS에서 교체, 이미지가 없는 씬은 기존 PNG 클래스 유지) -->
       <video id="scene-video"
-             autoplay loop playsinline
+             autoplay loop muted playsinline
              style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;display:none;"></video>
     </div>
     <div id="stage-noise"></div>
@@ -1553,7 +1553,7 @@ body.shake { animation: screen-shake 0.35s ease; }
 <div id="ending-screen">
   <!-- 엔딩 배경 동영상 (showEnding()에서 src 교체) -->
   <video id="ending-video"
-         autoplay loop playsinline
+         autoplay loop muted playsinline
          style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;display:none;"></video>
   <canvas id="ending-particle-canvas"></canvas>
   <div id="ending-content">
@@ -2001,6 +2001,7 @@ function setSceneBg(className) {
     }
     video.style.display = 'block';
     video.volume = isMuted ? 0 : masterVolume; // 마스터 볼륨 연동
+    video.muted = isMuted || !audioUnlocked;   // 자동재생 정책 — 미해제 시 음소거 유지
     video.play().catch(() => {});
     // 동영상에 소리가 있으면 BGM 볼륨 낮추기
     if (currentBgm) currentBgm.volume = isMuted ? 0 : masterVolume * 0.1;
@@ -2209,12 +2210,35 @@ let currentBgmKey = null;
 let masterVolume = 0.8; // 전역 볼륨 (0~1)
 let isMuted = false;    // 음소거 상태
 
+/* ── 영상 자동재생 정책 우회: 첫 사용자 입력 시 음소거 해제 ──
+   브라우저는 사용자 제스처 없이 소리 있는 video의 autoplay를 차단한다.
+   처음엔 muted로 재생을 보장하고, 첫 클릭/키 입력 시 음소거를 풀어준다. */
+let audioUnlocked = false;
+function unlockMedia() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  ['scene-video', 'ending-video'].forEach(id => {
+    const v = document.getElementById(id);
+    if (!v) return;
+    v.muted = isMuted;
+    v.volume = isMuted ? 0 : masterVolume;
+    if (v.style.display !== 'none') v.play().catch(() => {});
+  });
+}
+['pointerdown', 'keydown', 'touchstart'].forEach(evt =>
+  window.addEventListener(evt, unlockMedia, { once: true, passive: true })
+);
+
 /* ── 모든 동영상 요소에 볼륨 적용 헬퍼 ── */
 function applyVolumeToVideos() {
   const effectiveVol = isMuted ? 0 : masterVolume;
   ['scene-video', 'ending-video'].forEach(id => {
     const v = document.getElementById(id);
-    if (v) v.volume = effectiveVol;
+    if (v) {
+      v.volume = effectiveVol;
+      // 음소거 해제 전엔 항상 muted 유지 (자동재생 정책)
+      v.muted = isMuted || !audioUnlocked;
+    }
   });
 }
 
@@ -2795,6 +2819,7 @@ function showEnding(endingId, result) {
     }
     endingVideo.style.display = 'block';
     endingVideo.volume = isMuted ? 0 : masterVolume; // 마스터 볼륨 연동
+    endingVideo.muted = isMuted || !audioUnlocked;   // 자동재생 정책 — 미해제 시 음소거 유지
     endingVideo.play().catch(() => {});
     // 동영상 위 오버레이는 CSS .active-end::before 로 처리
     screen.style.removeProperty('background-image');
